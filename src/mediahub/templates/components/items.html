@@ -29,12 +29,12 @@
 
 {# ---------- InfiniDysk stream health (from its log, see integrations/infinidysk/logs.py) ---------- #}
 {% macro problem_line(p) -%}
-<p class="line-clamp-2 wrap-anywhere" title="{{ p.message }}"><span class="font-medium {{ 'text-error' if p.outcome.value == 'failed' else 'text-warning' }}">{{ p.outcome.label }}</span> <span class="muted">{{ p.at|reltime }}</span> · {{ p.message }}</p>
+<p class="wrap-anywhere"><span class="font-medium {{ 'text-error' if p.outcome.value == 'failed' else 'text-warning' }}">{{ p.outcome.label }}</span> <span class="muted">{{ p.at|reltime }}</span> · {{ p.message }}</p>
 {%- endmacro %}
 
 {% macro stream_health(r) -%}
 {%- set h = r.health -%}
-<div class="mt-3 space-y-1 rounded-field bg-{{ h.tone }}/10 px-3 py-2 text-xs" title="From InfiniDysk's log for the file this stream reads. InfiniDysk logs a repeated problem at most once a minute per file.">
+<div class="mt-3 space-y-1 rounded-field bg-{{ h.tone }}/10 px-3 py-2 text-xs">
   <p class="flex items-center gap-1.5 font-medium text-{{ h.tone }}">
     {{ icon(h.icon, "size-3.5") }}{{ h.label }}
     <span class="font-normal muted">· InfiniDysk{% if r.problems %} · {{ r.problems|length }} report{{ "s" if r.problems|length != 1 }}{% endif %}</span>
@@ -43,6 +43,7 @@
     {%- set recent = (r.problems|reverse|list)[:3] -%}
     {% for p in recent %}{{ problem_line(p) }}{% endfor %}
     {% if r.problems|length > 3 %}<p class="muted">+{{ r.problems|length - 3 }} earlier</p>{% endif %}
+    <p class="muted">From InfiniDysk's log for this file, which repeats a problem at most once a minute.</p>
   {% elif r.providers %}
     <p class="muted">Served by {{ r.providers|join(" · ") }}{% if r.idle %} · playing from the player's buffer{% endif %}</p>
   {% endif %}
@@ -56,35 +57,33 @@
 
 {% macro stream_health_note(r) -%}
 {%- if r.problems %}{% set p = r.problems[-1] -%}
-<p class="truncate text-xs text-{{ r.health.tone }}" title="{{ p.message }}">{{ r.health.label }} · {{ p.message }}</p>
+<p class="line-clamp-2 text-xs wrap-anywhere text-{{ r.health.tone }}">{{ r.health.label }} · {{ p.message }}</p>
 {%- endif %}
 {%- endmacro %}
 
 {% macro session_row(s, show_server=False, read=None) -%}
-<a href="/emby?instance={{ s.source.instance_id }}" class="flex items-center gap-3 rounded-field px-2 py-2 transition-colors hover:bg-base-300/40">
-  {{ ui.poster(s.media.image_url, s.media.title, "h-14 w-10") }}
-  <div class="min-w-0 flex-1 space-y-1">
-    <div class="flex items-center gap-2">
-      <p class="truncate text-sm font-medium">{{ s.media.title }}{% if s.media.year %} <span class="muted">({{ s.media.year }})</span>{% endif %}</p>
-      {{ server_chip(s.source, show_server) }}
+<a href="/emby?instance={{ s.source.instance_id }}" class="flex items-start gap-3 rounded-field px-2 py-2 transition-colors hover:bg-base-300/40">
+  {{ ui.poster(s.media.image_url, s.media.title, "h-16 w-11") }}
+  <div class="min-w-0 flex-1 space-y-0.5">
+    <div class="flex items-center gap-1.5">
+      <p class="min-w-0 flex-1 truncate text-sm font-medium">{{ s.media.title }}{% if s.media.year %} <span class="muted">({{ s.media.year }})</span>{% endif %}</p>
+      {% if read %}{{ stream_health_icon(read) }}{% endif %}
+      {% if s.state.value == "paused" %}<span class="text-warning">{{ icon("pause", "size-4") }}</span>{% else %}<span class="text-success">{{ icon("play", "size-4") }}</span>{% endif %}
     </div>
-    <p class="truncate text-xs muted">
-      {% if s.media.subtitle %}{{ s.media.subtitle }} · {% endif %}{{ s.user or "Unknown user" }} · {{ s.device or s.client or "Unknown device" }}
+    {% if s.media.subtitle %}<p class="truncate text-xs muted">{{ s.media.subtitle }}</p>{% endif %}
+    <p class="line-clamp-2 text-xs muted">
+      {{ s.user or "Unknown user" }} · {{ s.device or s.client or "Unknown device" }}
+      {%- if show_server %} · {{ s.source.server_name }}{% endif %}
+      {%- if s.state.value == "paused" %} · <span class="text-warning">Paused</span>{% endif %}
+      {%- if s.play_method.value == "transcode" %} · <span class="text-warning">Transcode</span>{% endif %}
     </p>
     {% if read %}{{ stream_health_note(read) }}{% endif %}
     {% if s.progress_pct is not none %}
-    <div class="flex items-center gap-2">
+    <div class="flex items-center gap-2 pt-0.5">
       {{ ui.progress(s.progress_pct, "primary", "flex-1") }}
       <span class="shrink-0 text-[0.68rem] tabular-nums muted">{{ s.progress_pct|pct }}</span>
     </div>
     {% elif s.media.kind.value == "live_tv" %}{{ live_badge() }}{% endif %}
-  </div>
-  <div class="flex shrink-0 flex-col items-end gap-1.5">
-    <span class="flex items-center gap-1.5">
-      {% if read %}{{ stream_health_icon(read) }}{% endif %}
-      {% if s.state.value == "paused" %}<span class="text-warning" title="Paused">{{ icon("pause", "size-4") }}</span>{% else %}<span class="text-success" title="Playing">{{ icon("play", "size-4") }}</span>{% endif %}
-    </span>
-    {{ play_method_badge(s) }}
   </div>
 </a>
 {%- endmacro %}
@@ -103,8 +102,8 @@ Transcode{% if t.video_direct %} (audio only){% elif t.audio_direct %} (video on
 {% macro next_check_line(c) -%}
 {%- set lead = "Next " ~ c.code if c.code else ("" if c.state.value == "no-next" else "Next episode") -%}
 {%- set text = (lead ~ " · " if lead else "") ~ c.state.label ~ (" · " ~ c.progress ~ "%" if c.progress is not none else "") ~ (" · " ~ c.message if c.message else "") -%}
-<p class="mt-2 flex items-center gap-1.5 text-xs {{ 'text-' ~ c.state.tone if c.state.tone else 'muted' }}" title="{{ text }}{% if c.name %} ({{ c.name }}){% endif %}">
-  {{ icon(c.state.icon, "size-3.5") }}<span class="min-w-0 truncate">{{ text }}</span>
+<p class="mt-2 flex items-start gap-1.5 text-xs {{ 'text-' ~ c.state.tone if c.state.tone else 'muted' }}">
+  <span class="shrink-0">{{ icon(c.state.icon, "size-3.5") }}</span><span class="min-w-0 line-clamp-2">{{ text }}{% if c.name %} ({{ c.name }}){% endif %}</span>
 </p>
 {%- endmacro %}
 
@@ -131,9 +130,9 @@ Transcode{% if t.video_direct %} (audio only){% elif t.audio_direct %} (video on
         <dt class="muted">{{ icon("clock", "size-3.5") }}</dt><dd class="tabular-nums">{% if s.duration_s %}{{ s.position_s|clock }} / {{ s.duration_s|clock }} <span class="muted">({{ s.progress_pct|pct }})</span>{% elif s.media.kind.value == "live_tv" %}{{ live_badge() }}{% else %}{{ s.position_s|clock }}{% endif %}</dd>
         <dt class="muted">{{ icon("film", "size-3.5") }}</dt>
         {% if s.transcode %}
-        <dd class="truncate text-warning" title="{{ transcode_summary(s.transcode) }}">{{ transcode_summary(s.transcode) }}</dd>
+        <dd class="line-clamp-2 text-warning">{{ transcode_summary(s.transcode) }}</dd>
         <dt class="muted">{{ icon("cpu", "size-3.5") }}</dt>
-        <dd class="truncate" title="{{ transcode_detail(s.transcode) }}">{{ transcode_detail(s.transcode) }}</dd>
+        <dd class="line-clamp-2">{{ transcode_detail(s.transcode) }}</dd>
         {% else %}
         <dd class="truncate">{{ s.play_method.label }}{% if s.source_stream.container %} · {{ s.source_stream.container|upper }}{% endif %}{% if s.source_stream.video_codec %} ({{ s.source_stream.video_codec|upper }}){% endif %}</dd>
         {% endif %}
@@ -205,7 +204,7 @@ Transcode{% if t.video_direct %} (audio only){% elif t.audio_direct %} (video on
         {%- if d.eta_s and d.state.value == "downloading" %} · {{ d.eta_s|duration }} left{% endif %}
       </p>
       {% endif %}
-      {% if d.release_title %}<p class="truncate text-[0.7rem] muted" title="{{ d.release_title }}">{{ d.release_title }}</p>{% endif %}
+      {% if d.release_title %}<p class="text-[0.7rem] wrap-anywhere muted">{{ d.release_title }}</p>{% endif %}
     </div>
   </div>
   {% if d.state.value in ("downloading", "stalled", "waiting") %}<div class="mt-3">{{ ui.progress(d.progress_pct, d.state.tone, "w-full") }}</div>{% endif %}
@@ -263,7 +262,7 @@ Transcode{% if t.video_direct %} (audio only){% elif t.audio_direct %} (video on
 
 {% macro issue_actions(i, url) -%}
 <div class="dropdown dropdown-end mt-1">
-  <button type="button" tabindex="0" class="btn btn-ghost btn-sm btn-circle" aria-label="Actions for this issue">{{ icon("menu", "size-4") }}</button>
+  <div role="button" tabindex="0" class="btn btn-ghost btn-sm btn-circle" aria-label="Actions for this issue">{{ icon("menu", "size-4") }}</div>
   <ul tabindex="0" class="menu dropdown-content z-40 mt-1 w-44 rounded-box border border-base-300/60 bg-base-100 p-1.5 shadow-lg">
     {% if i.hidden %}
     {{ issue_action(i, url, "restore", "Show again", "eye") }}
@@ -278,25 +277,11 @@ Transcode{% if t.video_direct %} (audio only){% elif t.audio_direct %} (video on
 {%- endmacro %}
 
 {# ---------- Services ---------- #}
-{% macro service_status_row(svc, show_server=False) -%}
-<a href="/{{ svc.source.slug }}?instance={{ svc.source.instance_id }}" class="flex items-center gap-3 rounded-field px-2 py-2 transition-colors hover:bg-base-300/40">
-  {{ ui.service_tile(svc.source.slug, "size-8", "size-4") }}
-  <div class="min-w-0 flex-1">
-    <p class="truncate text-sm font-medium">{{ source_label(svc.source, show_server) }}</p>
-    <p class="truncate text-xs muted">{% if svc.error %}{{ svc.error }}{% elif svc.version %}v{{ svc.version }}{% else %}{{ ui.status_label(svc.status) }}{% endif %}</p>
-  </div>
-  <div class="flex shrink-0 flex-col items-end gap-1">
-    {{ ui.status_badge(svc.status) }}
-    <span class="text-xs muted">{{ svc.headline }}</span>
-  </div>
-</a>
-{%- endmacro %}
-
 {% macro service_tile_card(svc) -%}
 <a href="/{{ svc.source.slug }}?instance={{ svc.source.instance_id }}" class="panel-inset flex items-center gap-2.5 p-2.5 transition-colors hover:bg-base-300/70">
   {{ ui.service_tile(svc.source.slug, "size-9", "size-4.5") }}
   <div class="min-w-0">
-    <p class="flex items-center gap-1.5 truncate text-sm font-medium">{{ svc.source.instance_name }}{% if svc.stale and svc.status.value not in ("disabled", "pending") %}<span class="text-warning" title="Data is stale">{{ icon("clock", "size-3") }}</span>{% endif %}</p>
+    <p class="flex items-center gap-1.5 truncate text-sm font-medium">{{ svc.source.instance_name }}{% if svc.stale and svc.status.value not in ("disabled", "pending") %}<span class="inline-flex items-center gap-0.5 text-xs font-normal text-warning">{{ icon("clock", "size-3") }} stale</span>{% endif %}</p>
     <p class="flex items-center gap-1.5 truncate text-xs {{ 'text-error' if svc.status.value in ('error', 'unreachable') else 'muted' }}">{{ ui.status_dot(svc.status) }}{{ svc.headline }}</p>
   </div>
 </a>
@@ -335,16 +320,16 @@ Transcode{% if t.video_direct %} (audio only){% elif t.audio_direct %} (video on
   <ul class="space-y-1.5 text-xs">
     {% for p in s.providers %}
     <li>
-      <div class="flex items-center gap-2">
+      <div class="flex flex-wrap items-center gap-x-2">
         {{ ui.status_dot({"closed": "ok", "half_open": "degraded", "open": "error"}.get(p.circuit.value, "pending")) }}
-        <span class="min-w-0 flex-1 truncate">{{ p.name }}{% if p.circuit.value in ("open", "half_open") %} <span class="{{ 'text-error' if p.circuit.value == 'open' else 'text-warning' }}">· circuit {{ "open" if p.circuit.value == "open" else "half-open" }}</span>{% endif %}</span>
+        <span class="min-w-0 flex-1 basis-1/2 truncate">{{ p.name }}{% if p.circuit.value in ("open", "half_open") %} <span class="{{ 'text-error' if p.circuit.value == 'open' else 'text-warning' }}">· circuit {{ "open" if p.circuit.value == "open" else "half-open" }}</span>{% endif %}</span>
         {% if p.over_limit %}<span class="badge badge-warning badge-soft badge-xs">Over limit</span>{% endif %}
         {% if p.error_rate %}<span class="tabular-nums {{ 'text-warning' if p.error_rate >= 0.05 else 'muted' }}" title="Share of article fetches that failed (1 h)">{{ (p.error_rate * 100)|pct(1 if p.error_rate < 0.01 else 0) }} err</span>{% endif %}
         {% if p.speed_mbps is not none %}<span class="tabular-nums muted">{{ "%.1f"|format(p.speed_mbps) }} MB/s</span>{% endif %}
         {% if p.connections_max %}<span class="tabular-nums muted">{{ p.connections_active }}/{{ p.connections_max }}</span>{% endif %}
       </div>
       {% if p.saves %}<p class="pl-4 muted">Rescued {{ p.saves }} article{{ "s" if p.saves != 1 }} another provider missed</p>{% endif %}
-      {% if p.last_failure and (p.circuit.value != "closed" or p.error_rate) %}<p class="line-clamp-2 pl-4 muted wrap-anywhere" title="{{ p.last_failure }}">Last failure: {{ p.last_failure }}</p>{% endif %}
+      {% if p.last_failure and (p.circuit.value != "closed" or p.error_rate) %}<p class="pl-4 muted wrap-anywhere">Last failure: {{ p.last_failure }}</p>{% endif %}
     </li>
     {% endfor %}
   </ul>
@@ -363,11 +348,55 @@ Transcode{% if t.video_direct %} (audio only){% elif t.audio_direct %} (video on
 <div class="flex items-center gap-3 px-2 py-2{{ ' opacity-60' if r.idle }}">
   <span class="svc-tile svc-infinidysk size-9">{{ icon("radio-tower", "size-4") }}</span>
   <div class="min-w-0 flex-1 space-y-1">
-    <p class="truncate text-sm font-medium" title="{{ r.file_name }}">{{ r.file_name }}</p>
-    <p class="truncate text-xs muted">{% if r.client_label %}{{ r.client_label }} · {% endif %}{{ r.bytes_read|filesize }}{% if r.file_size %} of {{ r.file_size|filesize }}{% endif %}{% if r.idle %} · <span title="InfiniDysk stopped tracking this read after 15 s without data; the player may still be playing from its buffer">Idle · last data {{ r.last_activity_at|reltime }}</span>{% else %}{% if r.speed_bps %} · {{ r.speed_bps|filesize(True) }}{% endif %}{% if r.started_at %} · {{ r.started_at|reltime }}{% endif %}{% endif %}</p>
+    <p class="text-sm font-medium wrap-anywhere">{{ r.file_name }}</p>
+    <p class="line-clamp-2 text-xs muted">{% if r.client_label %}{{ r.client_label }} · {% endif %}{{ r.bytes_read|filesize }}{% if r.file_size %} of {{ r.file_size|filesize }}{% endif %}{% if r.idle %} · Idle, may be playing from its buffer · last data {{ r.last_activity_at|reltime }}{% else %}{% if r.speed_bps %} · {{ r.speed_bps|filesize(True) }}{% endif %}{% if r.started_at %} · {{ r.started_at|reltime }}{% endif %}{% endif %}</p>
     {{ stream_health_note(r) }}
     {% if r.offset_pct is not none %}{{ ui.progress(r.offset_pct, "secondary", "w-full") }}{% endif %}
   </div>
   {{ stream_health_icon(r) }}
 </div>
 {%- endmacro %}
+
+{# ---------- Play history ---------- #}
+{% macro play_time(at) -%}
+<time datetime="{{ at.isoformat() }}" data-local>{{ at|reltime }}</time>
+{%- endmacro %}
+
+{% macro play_summary(r) -%}
+{%- set p = r.play -%}
+<span class="mt-0.5 shrink-0 text-{{ r.health.tone }}">{{ icon(r.health.icon, "size-4.5") }}</span>
+<div class="min-w-0 flex-1">
+  <p class="truncate text-sm font-medium">{{ p.title }}{% if p.year %} <span class="muted">({{ p.year }})</span>{% endif %}{% if p.subtitle %} <span class="font-normal muted">· {{ p.subtitle }}</span>{% endif %}</p>
+  <p class="truncate text-xs muted">{{ p.user or "Unknown user" }} · {{ p.device or "Unknown device" }} · {{ play_time(p.started_at) }}</p>
+  <p class="truncate text-xs">
+    <span class="text-{{ r.health.tone }}">{{ r.health.label }}</span>
+    <span class="muted">
+      {%- if p.problem_count %} · {{ p.problem_count }} report{{ "s" if p.problem_count != 1 }}{% endif %}
+      {%- if p.ended_at is none %} · In progress{% elif r.stopped_at_pct is not none %} · stopped at {{ r.stopped_at_pct|pct }}{% endif %}
+    </span>
+  </p>
+</div>
+{%- endmacro %}
+
+{% macro play_row(r) -%}
+{%- set p = r.play -%}
+{% if r.problems or p.incomplete %}
+<details class="group">
+  <summary class="flex cursor-pointer list-none items-start gap-3 rounded-field px-2 py-2.5 transition-colors hover:bg-base-300/40">
+    {{ play_summary(r) }}
+    <span class="mt-1 shrink-0 muted transition-transform group-open:rotate-90">{{ icon("chevron-right", "size-4") }}</span>
+  </summary>
+  <div class="space-y-1.5 px-2 pb-3 text-xs">
+    {% for problem in r.problems %}
+    <p class="wrap-anywhere"><span class="font-medium {{ 'text-error' if problem.outcome.value == 'failed' else 'text-warning' }}">{{ problem.outcome.label }}</span> <span class="muted">{{ play_time(problem.at) }}</span> · {{ problem.message }}</p>
+    {% endfor %}
+    {% if p.problem_count > r.problems|length %}<p class="muted">{{ p.problem_count - r.problems|length }} more not kept: only the first and latest are stored.</p>{% endif %}
+    {% if p.incomplete %}<p class="muted">MediaHub lost track of Emby or InfiniDysk during this play, so some problems may be missing.</p>{% endif %}
+    {% if p.file_name %}<p class="wrap-anywhere muted">File: {{ p.file_name }}</p>{% endif %}
+  </div>
+</details>
+{% else %}
+<div class="flex items-start gap-3 px-2 py-2.5">{{ play_summary(r) }}</div>
+{% endif %}
+{%- endmacro %}
+

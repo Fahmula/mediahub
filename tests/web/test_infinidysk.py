@@ -74,4 +74,4 @@ def test_idle_read_is_marked(authed: TestClient) -> None:
     read = map_read(json.loads(message)["reads"][0], 0.0, idle=True)
     _put(authed, LiveState(connected=True, reads=[read]))
     html = authed.get("/partials/service/infinidysk?server=local").text
-    assert "Idle · last data" in html and "opacity-60" in html
+    assert "may be playing from its buffer" in html and "opacity-60" in html

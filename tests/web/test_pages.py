@@ -59,6 +59,32 @@ def test_dashboard_shows_both_servers_and_issues(demo_client: TestClient) -> Non
     assert "sec-status" not in html and "Services online" not in html
 
 
+def test_playing_media_comes_first(demo_client: TestClient) -> None:
+    html = demo_client.get("/").text
+    assert html.index('id="sec-streams"') < html.index('id="sec-attention"')
+    assert html.index('id="sec-attention"') < html.index('id="sec-summary"')
+    assert "Now playing" in html
+
+
+def test_row_states_are_text_not_tooltips(demo_client: TestClient) -> None:
+    html = demo_client.get("/partials/dashboard/streams").text
+    assert '<span class="text-warning">Paused</span>' in html
+    assert 'title="Paused"' not in html
+
+
+def test_old_activity_tabs_still_open(demo_client: TestClient) -> None:
+    page = demo_client.get("/activity?tab=history").text
+    assert "Recent grabs and imports" in page and "/partials/activity/downloads" in page
+    assert "/partials/activity/playback" in demo_client.get("/activity?tab=streams").text
+    assert demo_client.get("/partials/activity/history").status_code == 200
+    assert demo_client.get("/activity?tab=nope").status_code == 404
+
+
+def test_server_select_keeps_the_query(demo_client: TestClient) -> None:
+    html = demo_client.get("/activity?tab=downloads&server=local").text
+    assert 'hx-get="/activity?tab=downloads"' in html
+
+
 def test_status_partial_is_gone(demo_client: TestClient) -> None:
     assert demo_client.get("/partials/dashboard/status").status_code == 404
 

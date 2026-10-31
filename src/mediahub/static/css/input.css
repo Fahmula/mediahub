@@ -177,6 +177,32 @@
   display: inline-block;
 }
 
+/* Keep the toast clear of the status bar in an installed app. */
+#toast {
+  margin-top: env(safe-area-inset-top);
+}
+
+/* Touch screens get 44px targets, and 16px fields so iOS doesn't zoom in on focus. Outside any
+   layer on purpose: that beats daisyUI's size classes without repeating them on every control. */
+@media (pointer: coarse) {
+  .btn {
+    --size: 2.75rem;
+  }
+  .tabs {
+    --tab-height: 2.75rem;
+  }
+  .menu li > * {
+    min-height: 2.75rem;
+    align-items: center;
+  }
+  .input,
+  .select,
+  .textarea {
+    --size: 2.75rem;
+    font-size: 16px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     transition: none !important;

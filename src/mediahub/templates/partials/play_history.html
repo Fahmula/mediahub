@@ -1,0 +1,26 @@
+{% import "components/ui.html" as ui %}
+{% if scope not in ("all", "local") %}
+<div class="panel">{{ ui.empty_state("history", "Recorded on each server", "Play history stays on the server that recorded it. Open that server's MediaHub to see its plays.") }}</div>
+{% else %}
+{% for st in view.streams if not st.source.is_remote and not st.stats.live %}
+<div role="alert" class="alert alert-warning alert-soft mb-3 text-sm">
+  {{ icon("wifi-off", "size-4") }}
+  <span>{{ st.source.instance_name }}'s live feed isn't connected, so plays can't be matched to it.{% if st.stats.feed_error %} {{ st.stats.feed_error }}{% endif %}</span>
+</div>
+{% endfor %}
+<div class="mb-3 flex flex-wrap items-center gap-2">
+  <div class="join" role="group" aria-label="Filter plays">
+    <a href="/activity?tab=plays" class="btn btn-sm join-item {{ 'btn-primary' if show == 'problems' else 'btn-ghost bg-base-100' }}"{% if show == 'problems' %} aria-current="true"{% endif %}>With problems <span class="tabular-nums opacity-70">{{ plays_with_problems }}</span></a>
+    <a href="/activity?tab=plays&amp;show=all" class="btn btn-sm join-item {{ 'btn-primary' if show == 'all' else 'btn-ghost bg-base-100' }}"{% if show == 'all' %} aria-current="true"{% endif %}>All plays <span class="tabular-nums opacity-70">{{ plays_total }}</span></a>
+  </div>
+  {% if view.multi_server %}<p class="text-xs muted">Plays on {{ identity.server_name }} only</p>{% endif %}
+</div>
+{% if plays %}
+<div class="panel divide-y divide-base-300/50 p-2">{% include "partials/play_rows.html" %}</div>
+{% elif plays_total %}
+<div class="panel">{{ ui.empty_state("circle-check", "No problems recorded", "None of the last 30 days' plays had an InfiniDysk problem.") }}</div>
+{% else %}
+<div class="panel">{{ ui.empty_state("history", "No plays recorded yet", "Plays of InfiniDysk files appear here from now on, and are kept for 30 days.") }}</div>
+{% endif %}
+<p class="mt-3 px-1 text-xs muted">Only plays MediaHub saw in Emby and could match to InfiniDysk are listed, from what InfiniDysk logged. A stutter it didn't log can't show here.</p>
+{% endif %}

@@ -1,4 +1,8 @@
-"""ORM models. Monitoring data is never persisted; these tables hold configuration only."""
+"""ORM models: configuration, plus the play history.
+
+Monitoring data is otherwise never persisted. ``play_history`` is the exception, because
+nothing upstream can answer "what went wrong during that play" afterwards.
+"""
 
 from __future__ import annotations
 
@@ -6,7 +10,17 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import JSON, Boolean, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
+    UniqueConstraint,
+)
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 from mediahub.db.types import EncryptedJSON, UTCDateTime
@@ -113,3 +127,36 @@ class IssueStateRow(Base):
     first_seen: Mapped[datetime | None]
     acknowledged_at: Mapped[datetime | None]
     muted_until: Mapped[datetime | None]
+
+
+class PlayRecord(Base):
+    """One play and what InfiniDysk reported around it. Local only: never sent to peers.
+
+    No client address, read path or provider is kept. ``problems`` are InfiniDysk's messages
+    verbatim, and those can name paths.
+    """
+
+    __tablename__ = "play_history"
+    __table_args__ = (Index("ix_play_history_outcome_started_at", "outcome", "started_at"),)
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    instance_id: Mapped[str] = mapped_column(String(36))  # no FK: rows outlive the instance
+    instance_name: Mapped[str] = mapped_column(String(64))
+    session_id: Mapped[str] = mapped_column(String(128))
+    item_key: Mapped[str] = mapped_column(String(255))
+    title: Mapped[str] = mapped_column(String(255))
+    subtitle: Mapped[str | None] = mapped_column(String(255))
+    year: Mapped[int | None]
+    kind: Mapped[str] = mapped_column(String(16))
+    user: Mapped[str | None] = mapped_column(String(128))
+    device: Mapped[str | None] = mapped_column(String(128))
+    file_name: Mapped[str | None] = mapped_column(Text)
+    started_at: Mapped[datetime] = mapped_column(index=True)
+    last_seen_at: Mapped[datetime]
+    ended_at: Mapped[datetime | None]
+    position_s: Mapped[float | None] = mapped_column(Float)
+    duration_s: Mapped[float | None] = mapped_column(Float)
+    outcome: Mapped[str] = mapped_column(String(16))
+    problem_count: Mapped[int] = mapped_column(Integer)
+    problems: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
+    incomplete: Mapped[bool] = mapped_column(Boolean)

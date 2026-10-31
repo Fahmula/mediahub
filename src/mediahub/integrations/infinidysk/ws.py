@@ -29,6 +29,7 @@ import contextlib
 import json
 import time
 from collections import deque
+from collections.abc import Callable
 from typing import Any
 
 from websockets.asyncio.client import connect as ws_connect
@@ -85,6 +86,7 @@ class LiveFeed:
         # Kept across reconnects: the backfill after each connect dedupes against it.
         self.logs = LogBook()
         self.needs_backfill = False
+        self.on_read_started: Callable[[], None] | None = None
 
     @property
     def running(self) -> bool:
@@ -210,6 +212,7 @@ class LiveFeed:
 
     def _set_reads(self, reads: list[dict[str, Any]]) -> None:
         now = time.monotonic()
+        known = {str(raw.get("id", "")) for raw in self._reads} | set(self._idle)
         seen = set()
         for raw in reads:
             self._track_playback(raw)
@@ -238,6 +241,8 @@ class LiveFeed:
             if read_id not in seen and _file_key(entry[0]) not in reading
         }
         self._reads = reads
+        if self.on_read_started is not None and seen - known:
+            self.on_read_started()
 
     def _track_playback(self, raw: dict[str, Any]) -> None:
         started, last = raw.get("startedAt"), raw.get("lastActivityAt")

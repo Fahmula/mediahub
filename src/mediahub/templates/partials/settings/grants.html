@@ -2,7 +2,7 @@
   {% if new_token %}
   <div role="status" class="alert alert-success alert-soft block space-y-2 text-sm">
     <p class="flex items-center gap-2 font-semibold">{{ icon("circle-check", "size-4") }} Token for {{ new_label }} created</p>
-    <p>Copy it now: it's shown only once. On {{ new_label }}, open Settings → Connected servers → Link a server, and paste it with this server's URL.</p>
+    <p>Copy it now: it's shown only once. On {{ new_label }}, open Servers → Link a server, and paste it with this server's URL.</p>
     <div class="join w-full">
       <input id="new-peer-token" class="input join-item w-full font-mono text-xs" value="{{ new_token }}" readonly spellcheck="false" aria-label="New access token">
       <button type="button" class="btn join-item" data-copy="new-peer-token">{{ icon("copy", "size-4") }} Copy</button>
@@ -10,7 +10,7 @@
   </div>
   {% endif %}
 
-  <form hx-post="/settings/peers/grants" hx-target="#peer-grants" hx-swap="outerHTML" class="flex flex-wrap items-start gap-2" autocomplete="off">
+  <form hx-post="/servers/peers/grants" hx-target="#peer-grants" hx-swap="outerHTML" class="flex flex-wrap items-start gap-2" autocomplete="off">
     <label class="min-w-0 flex-1 space-y-1">
       <span class="sr-only">Server that will use the token</span>
       <input class="input input-sm w-full {{ 'input-error' if grant_error }}" name="label" value="{{ grant_label or '' }}" maxlength="64" placeholder="Server that will use it, e.g. Skynet" required>
@@ -31,9 +31,9 @@
         </p>
       </div>
       {% if grant.revoked_at %}
-      <button type="button" class="btn btn-ghost btn-sm" hx-post="/settings/peers/grants/{{ grant.id }}/delete" hx-target="#peer-grants" hx-swap="outerHTML" aria-label="Delete the revoked token {{ grant.label }}">{{ icon("trash-2", "size-4") }}<span class="hidden sm:inline">Delete</span></button>
+      <button type="button" class="btn btn-ghost btn-sm" hx-post="/servers/peers/grants/{{ grant.id }}/delete" hx-target="#peer-grants" hx-swap="outerHTML" aria-label="Delete the revoked token {{ grant.label }}">{{ icon("trash-2", "size-4") }}<span class="hidden sm:inline">Delete</span></button>
       {% else %}
-      <button type="button" class="btn btn-ghost btn-sm text-error" hx-post="/settings/peers/grants/{{ grant.id }}/revoke" hx-target="#peer-grants" hx-swap="outerHTML" hx-confirm="Revoke the token for {{ grant.label }}? That server immediately loses access." aria-label="Revoke the token for {{ grant.label }}">{{ icon("ban", "size-4") }}<span class="hidden sm:inline">Revoke</span></button>
+      <button type="button" class="btn btn-ghost btn-sm text-error" hx-post="/servers/peers/grants/{{ grant.id }}/revoke" hx-target="#peer-grants" hx-swap="outerHTML" hx-confirm="Revoke the token for {{ grant.label }}? That server immediately loses access." aria-label="Revoke the token for {{ grant.label }}">{{ icon("ban", "size-4") }}<span class="hidden sm:inline">Revoke</span></button>
       {% endif %}
     </li>
     {% endfor %}

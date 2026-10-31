@@ -170,7 +170,7 @@ def test_stream_card_shows_the_next_episode_check(
     store.put_next_check(("emby-1", episode.session_id, episode.item_id), check)
     html = authed.get("/partials/service/emby?server=local").text
     assert expected in html
-    assert html.count(expected) == 2  # the line and its tooltip
+    assert html.count(expected) == 1  # visible text, not a tooltip
 
 
 def test_layout_toggle_is_remembered(authed: TestClient) -> None:

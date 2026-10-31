@@ -2,97 +2,14 @@
 {% import "components/ui.html" as ui %}
 {% block content %}
 <div class="mx-auto max-w-4xl space-y-4 lg:space-y-6">
-  {% if notice == "service" %}<div role="status" class="alert alert-success alert-soft text-sm">{{ icon("circle-check", "size-4") }} Service saved. Its status updates below within a few seconds.</div>{% endif %}
-  {% if notice == "peer" %}<div role="status" class="alert alert-success alert-soft text-sm">{{ icon("circle-check", "size-4") }} Linked server saved. Its data appears within a few seconds.</div>{% endif %}
-  {% if notice == "peer-deleted" %}<div role="status" class="alert alert-info alert-soft text-sm">{{ icon("trash-2", "size-4") }} Server unlinked.</div>{% endif %}
-  {% if notice == "deleted" %}<div role="status" class="alert alert-info alert-soft text-sm">{{ icon("trash-2", "size-4") }} Service removed.</div>{% endif %}
-
-  <section class="panel p-4" id="services">
-    <div class="mb-3 flex items-center gap-2">
-      <h2 class="section-title">Services</h2>
-      <span class="badge badge-ghost badge-sm">{{ instances|length }}</span>
-      <a href="/settings/services/new" class="btn btn-primary btn-sm ml-auto">{{ icon("plus", "size-4") }} Add service</a>
-    </div>
-    {% if instances %}
-    <ul class="divide-y divide-base-300/50">
-      {% for inst in instances %}
-      {% set snap = snapshots.get(inst.id) %}
-      <li class="flex items-center gap-3 py-2.5">
-        {{ ui.service_tile(inst.service_type, "size-9", "size-4.5") }}
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-medium">{{ inst.name }} <span class="font-normal muted">· {{ ServiceType(inst.service_type).label }}</span></p>
-          <p class="truncate text-xs muted">{{ inst.base_url }}</p>
-          {% if snap and snap.error %}<p class="truncate text-xs text-error">{{ snap.error }}</p>
-          {% elif inst.last_success_at %}<p class="truncate text-xs muted">Last connected {{ inst.last_success_at|reltime }}</p>{% endif %}
-        </div>
-        <div class="hidden sm:block">{{ ui.status_badge(snap.status if snap else ("disabled" if not inst.enabled else "pending")) }}</div>
-        <div class="dropdown dropdown-end">
-          <button type="button" tabindex="0" class="btn btn-ghost btn-sm btn-circle" aria-label="Actions for {{ inst.name }}">{{ icon("menu", "size-4") }}</button>
-          <ul tabindex="0" class="menu dropdown-content z-40 mt-1 w-44 rounded-box border border-base-300/60 bg-base-100 p-1.5 shadow-lg">
-            <li><a href="/settings/services/{{ inst.id }}">{{ icon("pencil", "size-4") }} Edit</a></li>
-            <li><button type="button" hx-post="/settings/services/{{ inst.id }}/toggle">{{ icon("pause" if inst.enabled else "play", "size-4") }} {{ "Disable" if inst.enabled else "Enable" }}</button></li>
-            <li><button type="button" class="text-error" hx-post="/settings/services/{{ inst.id }}/delete" hx-confirm="Remove {{ inst.name }}? Its stored credentials are deleted.">{{ icon("trash-2", "size-4") }} Remove</button></li>
-          </ul>
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-    {% else %}
-    {{ ui.empty_state("plug", "No services yet", "Add Emby, Sonarr, Radarr or InfiniDysk. Credentials are encrypted at rest and never sent to your browser.") }}
-    {% endif %}
-  </section>
-
   <section class="panel p-4">
     <h2 class="section-title mb-3">General</h2>
     {% with server_name=identity.server_name %}{% include "partials/settings/general_form.html" %}{% endwith %}
   </section>
 
-  <section class="panel p-4" id="peers">
-    <div class="mb-1 flex items-center gap-2">
-      <h2 class="section-title">Connected servers</h2>
-      <span class="badge badge-ghost badge-sm">{{ peers|length }}</span>
-      <a href="/settings/peers/new" class="btn btn-primary btn-sm ml-auto">{{ icon("plus", "size-4") }} Link a server</a>
-    </div>
-    <p class="mb-3 text-sm muted">Other MediaHub servers shown here, read-only. Each needs an access token created on that server.</p>
-    {% if peers %}
-    <ul class="divide-y divide-base-300/50">
-      {% for peer in peers %}
-      {% set state = peer_states.get(peer.id) %}
-      <li class="flex items-center gap-3 py-2.5">
-        <span class="svc-tile svc-peer size-9">{{ icon("server", "size-4.5") }}</span>
-        <div class="min-w-0 flex-1">
-          <p class="truncate text-sm font-medium">{{ peer.name }}</p>
-          <p class="truncate text-xs muted">{{ peer.base_url }}</p>
-          {% if state and state.error %}<p class="truncate text-xs text-error">{{ state.error }}</p>
-          {% elif peer.last_success_at %}<p class="truncate text-xs muted">Last synced {{ peer.last_success_at|reltime }}</p>{% endif %}
-        </div>
-        <div class="hidden sm:block">{{ ui.status_badge(state.status if state else ("disabled" if not peer.enabled else "pending")) }}</div>
-        <div class="dropdown dropdown-end">
-          <button type="button" tabindex="0" class="btn btn-ghost btn-sm btn-circle" aria-label="Actions for {{ peer.name }}">{{ icon("menu", "size-4") }}</button>
-          <ul tabindex="0" class="menu dropdown-content z-40 mt-1 w-44 rounded-box border border-base-300/60 bg-base-100 p-1.5 shadow-lg">
-            <li><a href="/settings/peers/{{ peer.id }}">{{ icon("pencil", "size-4") }} Edit</a></li>
-            <li><button type="button" hx-post="/settings/peers/{{ peer.id }}/toggle">{{ icon("pause" if peer.enabled else "play", "size-4") }} {{ "Disable" if peer.enabled else "Enable" }}</button></li>
-            <li><button type="button" class="text-error" hx-post="/settings/peers/{{ peer.id }}/delete" hx-confirm="Unlink {{ peer.name }}? Its stored access token is deleted.">{{ icon("trash-2", "size-4") }} Unlink</button></li>
-          </ul>
-        </div>
-      </li>
-      {% endfor %}
-    </ul>
-    {% endif %}
-
-    <div class="mt-4 border-t border-base-300/60 pt-4">
-      <h3 class="flex items-center gap-2 font-semibold">{{ icon("key-round", "size-4") }} Access tokens</h3>
-      <p class="mb-3 mt-1 text-sm muted">Let another MediaHub read this server: create a token here and paste it into that server's “Link a server” form. Client IPs and file paths are never shared.</p>
-      {% include "partials/settings/grants.html" %}
-    </div>
-  </section>
-
   <section class="panel p-4">
     <h2 class="section-title mb-3">Account</h2>
     {% include "partials/settings/password_form.html" %}
-    <div class="mt-4 border-t border-base-300/60 pt-4">
-      <button type="button" class="btn btn-ghost btn-sm" hx-post="/logout">{{ icon("log-out", "size-4") }} Sign out</button>
-    </div>
   </section>
 
   <section class="panel p-4">

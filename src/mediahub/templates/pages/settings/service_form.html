@@ -6,7 +6,7 @@
 {%- endmacro %}
 
 {% block content %}
-<form method="post" action="{{ '/settings/services/' ~ instance.id if instance else '/settings/services/new' }}" class="mx-auto max-w-2xl space-y-4" autocomplete="off">
+<form method="post" action="{{ '/servers/services/' ~ instance.id if instance else '/servers/services/new' }}" class="mx-auto max-w-2xl space-y-4" autocomplete="off">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   <input type="hidden" name="service_type" value="{{ form.service_type.value }}">
   {% if instance %}<input type="hidden" name="instance_id" value="{{ instance.id }}">{% endif %}
@@ -81,11 +81,11 @@
   <div id="test-result" aria-live="polite"></div>
 
   <div class="flex flex-wrap items-center gap-2">
-    <button type="button" class="btn btn-outline btn-sm" hx-post="/settings/services/test" hx-include="closest form" hx-target="#test-result" hx-indicator="#test-spinner" hx-disabled-elt="this">
+    <button type="button" class="btn btn-outline btn-sm" hx-post="/servers/services/test" hx-include="closest form" hx-target="#test-result" hx-indicator="#test-spinner" hx-disabled-elt="this">
       <span id="test-spinner" class="loading loading-spinner loading-xs htmx-indicator"></span>{{ icon("plug", "size-4") }} Test connection
     </button>
     <span class="flex-1"></span>
-    <a href="/settings" class="btn btn-ghost btn-sm">Cancel</a>
+    <a href="/servers" class="btn btn-ghost btn-sm">Cancel</a>
     <button type="submit" class="btn btn-primary btn-sm">{{ "Save changes" if instance else "Add service" }}</button>
   </div>
 </form>

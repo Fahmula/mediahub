@@ -1,9 +1,9 @@
 {% extends "base.html" %}
 {% import "components/ui.html" as ui %}
 
-{% macro nav_link(href, icon_name, label, match=None) -%}
+{% macro nav_link(href, icon_name, label, match=None, count_id=None) -%}
 {%- set active = (current_path == href) if match is none else current_path.startswith(match) -%}
-<a href="{{ href }}" class="nav-link" {% if active %}aria-current="page"{% endif %}>{{ icon(icon_name, "size-[1.15rem]") }}<span>{{ label }}</span></a>
+<a href="{{ href }}" class="nav-link" {% if active %}aria-current="page"{% endif %}>{{ icon(icon_name, "size-[1.15rem]") }}<span>{{ label }}</span>{% if count_id %}<span id="{{ count_id }}" class="ml-auto badge badge-error badge-xs tabular-nums empty:hidden"></span>{% endif %}</a>
 {%- endmacro %}
 
 {% macro service_link(href, service_type, label) -%}
@@ -11,9 +11,9 @@
 <a href="{{ href }}" class="nav-link" {% if active %}aria-current="page"{% endif %}>{{ ui.service_tile(service_type, "size-6", "size-3.5") }}<span>{{ label }}</span></a>
 {%- endmacro %}
 
-{% macro bottom_link(href, icon_name, label, match) -%}
+{% macro bottom_link(href, icon_name, label, match, count_id=None) -%}
 {%- set active = current_path == "/" if match == "/" else current_path.startswith(match) -%}
-<a href="{{ href }}" class="bottom-link" {% if active %}aria-current="page"{% endif %}>{{ icon(icon_name, "size-5") }}<span>{{ label }}</span></a>
+<a href="{{ href }}" class="bottom-link" {% if active %}aria-current="page"{% endif %}><span class="relative">{{ icon(icon_name, "size-5") }}{% if count_id %}<span id="{{ count_id }}" class="absolute -right-3 -top-1.5 badge badge-error badge-xs tabular-nums empty:hidden"></span>{% endif %}</span><span>{{ label }}</span></a>
 {%- endmacro %}
 
 {% block body %}
@@ -24,7 +24,7 @@
     <nav class="flex flex-col gap-1" aria-label="Main">
       {{ nav_link("/", "house", "Dashboard") }}
       {{ nav_link("/activity", "activity", "Activity", "/activity") }}
-      {{ nav_link("/attention", "triangle-alert", "Needs Attention", "/attention") }}
+      {{ nav_link("/attention", "triangle-alert", "Needs Attention", "/attention", "nav-attention-side") }}
       <p class="px-3 pb-1 pt-5 text-[0.68rem] font-semibold uppercase tracking-wider muted">Services</p>
       {{ service_link("/emby", "emby", "Emby") }}
       {{ service_link("/sonarr", "sonarr", "Sonarr") }}
@@ -32,7 +32,6 @@
       {{ service_link("/infinidysk", "infinidysk", "InfiniDysk") }}
       <div class="my-3 border-t border-base-300/60"></div>
       {{ nav_link("/servers", "server", "Servers", "/servers") }}
-      {{ nav_link("/settings", "settings", "Settings", "/settings") }}
     </nav>
     <div class="mt-auto space-y-3 px-3 pt-4">
       <div class="flex items-center gap-2 text-xs muted">{{ icon("hard-drive", "size-3.5") }}<span class="truncate">{{ identity.server_name }}</span></div>
@@ -43,18 +42,18 @@
   {# ---------- Main column ---------- #}
   <div class="flex min-h-dvh min-w-0 flex-col">
     <header class="sticky top-0 z-30 border-b border-base-300/60 bg-base-200/85 pt-[env(safe-area-inset-top)] backdrop-blur">
-      <div class="flex h-14 items-center gap-2 px-4 lg:h-16 lg:px-8">
+      <div class="flex h-14 items-center gap-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:h-16 lg:px-8">
         {% if back_href %}
-        <a href="{{ back_href }}" class="btn btn-ghost btn-sm btn-circle -ml-2 lg:hidden" aria-label="Back">{{ icon("chevron-left", "size-5") }}</a>
+        <a href="{{ back_href }}" data-back class="btn btn-ghost btn-sm btn-circle -ml-2 lg:hidden" aria-label="Back">{{ icon("chevron-left", "size-5") }}</a>
         {% else %}
-        <a href="/" class="lg:hidden" aria-label="Dashboard">{{ ui.logo("size-6", "top") }}</a>
+        <a href="/" class="-ml-2.5 flex size-11 shrink-0 items-center justify-center lg:hidden" aria-label="Dashboard">{{ ui.logo("size-6", "top") }}</a>
         {% endif %}
-        <h1 class="min-w-0 truncate text-lg font-semibold lg:text-2xl">{{ page_title }}</h1>
+        <h1 class="min-w-0 truncate text-base font-semibold lg:text-2xl">{{ page_title }}</h1>
         <div class="ml-auto flex items-center gap-1.5">
           {% if server_options and server_options|length > 1 %}
           <label class="sr-only" for="server-select">Server</label>
-          <select id="server-select" name="server" class="select select-sm w-36 sm:w-44"
-                  hx-get="{{ current_path }}" hx-trigger="change" hx-target="#main" hx-select="#main" hx-swap="outerHTML" hx-push-url="true">
+          <select id="server-select" name="server" class="select select-sm w-32 sm:w-44"
+                  hx-get="{{ current_url }}" hx-trigger="change" hx-target="#main" hx-select="#main" hx-swap="outerHTML" hx-push-url="true">
             <option value="all" {% if scope == "all" %}selected{% endif %}>All servers</option>
             {% for s in server_options %}
             <option value="{{ s.key }}" {% if scope == s.key %}selected{% endif %}>{{ s.name }}{% if s.is_local %} (this){% endif %}</option>
@@ -65,15 +64,17 @@
             <span data-live-on>{{ icon("circle-pause", "size-5") }}</span>
             <span data-live-off hidden class="text-warning">{{ icon("circle-play", "size-5") }}</span>
           </button>
-          <button type="button" class="btn btn-ghost btn-sm btn-circle hidden sm:inline-flex" data-theme-toggle title="Toggle theme">
-            {{ icon("sun", "size-5") }}
-          </button>
-          <div class="dropdown dropdown-end hidden lg:block">
-            <button type="button" tabindex="0" class="btn btn-ghost btn-sm btn-circle" aria-label="Account">
+          <div class="dropdown dropdown-end">
+            {# A div, not a button: Safari doesn't focus a tapped button, and the menu opens on focus. #}
+            <div role="button" tabindex="0" class="btn btn-ghost btn-sm btn-circle" aria-label="Account">
               <span class="flex size-8 items-center justify-center rounded-full bg-primary/20 text-xs font-semibold uppercase text-primary">{{ auth.username[:2] }}</span>
-            </button>
-            <ul tabindex="0" class="menu dropdown-content z-50 mt-2 w-48 rounded-box border border-base-300/60 bg-base-100 p-2 shadow-lg">
-              <li class="menu-title">{{ auth.username }}</li>
+            </div>
+            <ul tabindex="0" class="menu dropdown-content z-50 mt-2 w-52 rounded-box border border-base-300/60 bg-base-100 p-2 shadow-lg">
+              <li class="menu-title">
+                <span class="truncate">{{ auth.username }}</span>
+                <span class="truncate font-normal">{{ identity.server_name }}{% if demo_mode %} · demo data{% endif %}</span>
+              </li>
+              <li><button type="button" data-theme-toggle>{{ icon("sun", "size-4") }} Switch theme</button></li>
               <li><a href="/settings">{{ icon("settings", "size-4") }} Settings</a></li>
               <li><button type="button" hx-post="/logout">{{ icon("log-out", "size-4") }} Sign out</button></li>
             </ul>
@@ -83,7 +84,7 @@
       <div id="live-paused-banner" hidden class="bg-warning/15 px-4 py-1 text-center text-xs text-warning lg:px-8">Live updates paused</div>
     </header>
 
-    <main id="main" class="mx-auto w-full max-w-[96rem] flex-1 px-4 pb-28 pt-4 lg:px-8 lg:pb-10 lg:pt-6">
+    <main id="main" class="mx-auto w-full max-w-[96rem] flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-4 lg:px-8 lg:pb-10 lg:pt-6">
       {% block content %}{% endblock %}
     </main>
   </div>
@@ -92,12 +93,14 @@
 {# ---------- Mobile bottom navigation ---------- #}
 <nav class="fixed inset-x-0 bottom-0 z-40 border-t border-base-300/60 bg-base-100/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden" aria-label="Main">
   <div class="mx-auto flex max-w-lg">
-    {{ bottom_link("/", "house", "Dashboard", "/") }}
+    {{ bottom_link("/", "house", "Home", "/") }}
     {{ bottom_link("/activity", "activity", "Activity", "/activity") }}
-    {{ bottom_link("/servers", "server", "Servers", "/servers") }}
-    {{ bottom_link("/settings", "settings", "Settings", "/settings") }}
+    {{ bottom_link("/attention", "triangle-alert", "Attention", "/attention", "nav-attention-bottom") }}
+    {{ bottom_link("/servers", "server", "Servers", ("/servers", "/emby", "/sonarr", "/radarr", "/infinidysk")) }}
   </div>
 </nav>
+
+<div hidden hx-get="/partials/nav" hx-trigger="load, every 15s, mh:refresh" hx-swap="none" data-poll></div>
 
 <div id="toast" class="toast toast-top toast-center z-50" aria-live="polite"></div>
 {% endblock %}

@@ -6,7 +6,7 @@
 {% elif view.downloads %}
   <div class="space-y-0.5">{% for d in view.downloads[:6] %}{{ items.download_row(d, view.multi_server) }}{% endfor %}</div>
 {% elif not (view.snapshots_of(ServiceType.SONARR) or view.snapshots_of(ServiceType.RADARR)) %}
-  {{ ui.empty_state("arrow-down-to-line", "No download managers", "Add Sonarr or Radarr in Settings to monitor their queues.") }}
+  {{ ui.empty_state("arrow-down-to-line", "No download managers", "Add Sonarr or Radarr under Servers to monitor their queues.") }}
 {% else %}
   {{ ui.empty_state("arrow-down-to-line", "Queue is empty", "Nothing is downloading right now.") }}
 {% endif %}

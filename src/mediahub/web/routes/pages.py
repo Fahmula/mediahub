@@ -1,34 +1,41 @@
 """Monitoring pages and their polled partials.
 
-Every handler here is ``async`` and reads only the in-memory snapshot store, so pages render
-instantly regardless of how slow or unreachable the monitored services are.
+Handlers here are ``async`` and read the in-memory snapshot store, so pages render instantly
+regardless of how slow or unreachable the monitored services are. The exception is Play
+history: recorded plays live in the database, read in a thread, and never reach upstream.
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
+from starlette.concurrency import run_in_threadpool
 
-from mediahub.aggregation.dashboard import SCOPE_ALL, DashboardView, build_view
+from mediahub.aggregation.dashboard import SCOPE_ALL, SCOPE_LOCAL, DashboardView, build_view
 from mediahub.context import AppContext, get_context
+from mediahub.db.models import PlayRecord
+from mediahub.db.session import session_scope
+from mediahub.history import repository as history
 from mediahub.models.common import ServiceType
 from mediahub.models.downloads import ActivityEvent, DownloadItem
-from mediahub.models.infinidysk import ActiveRead
+from mediahub.models.infinidysk import ActiveRead, ReadProblem, StreamHealth
 from mediahub.models.playback import PlaybackSession
 from mediahub.models.snapshot import ServiceSnapshot
 from mediahub.security.csrf import verify_csrf
 from mediahub.web.deps import require_auth
-from mediahub.web.scope import remember_scope, scope_context
+from mediahub.web.scope import current_scope, remember_scope, scope_context
 from mediahub.web.templating import render
 
 router = APIRouter(dependencies=[Depends(require_auth), Depends(verify_csrf)])
 
 DASHBOARD_SECTIONS = frozenset({"attention", "summary", "streams", "downloads", "infinidysk"})
-ActivityTab = Literal["playback", "downloads", "history", "streams"]
+ACTIVITY_TABS = frozenset({"playback", "plays", "downloads"})
+PLAYS_PER_PAGE = 50
+# Tabs that were folded into others; old links and open pages still ask for them.
+ACTIVITY_TAB_ALIASES = {"history": "downloads", "streams": "playback"}
 # Mute choices on Needs Attention, in hours.
 MUTE_HOURS = (1, 24, 168)
 # Card layout on service pages (Emby: detailed cards or compact rows), remembered in a cookie.
@@ -68,18 +75,11 @@ async def dashboard_partial(
     return render(request, f"partials/dashboard/{section}.html", base)
 
 
-@router.get("/servers", response_class=HTMLResponse)
-async def servers(request: Request, ctx: AppContext = Depends(get_context)) -> HTMLResponse:
-    ctx.monitor.demand.touch()
-    view = build_view(ctx.monitor.store, "all")
-    return render(request, "pages/servers.html", {"view": view, "page_title": "Servers"})
-
-
-@router.get("/partials/servers", response_class=HTMLResponse)
-async def servers_partial(request: Request, ctx: AppContext = Depends(get_context)) -> HTMLResponse:
-    ctx.monitor.demand.touch()
-    view = build_view(ctx.monitor.store, "all")
-    return render(request, "partials/servers.html", {"view": view})
+@router.get("/partials/nav", response_class=HTMLResponse)
+async def nav_partial(request: Request, ctx: AppContext = Depends(get_context)) -> HTMLResponse:
+    """The Needs Attention count in the nav. On every page, so it doesn't count as demand."""
+    view = build_view(ctx.monitor.store, current_scope(request, ctx))
+    return render(request, "partials/nav_counts.html", {"attention_count": len(view.issues)})
 
 
 @router.get("/attention", response_class=HTMLResponse)
@@ -163,6 +163,13 @@ def filter_view(
 SERVICE_PAGES: dict[str, ServiceType] = {t.value: t for t in ServiceType}
 
 
+def _activity_tab(tab: str) -> str:
+    tab = ACTIVITY_TAB_ALIASES.get(tab, tab)
+    if tab not in ACTIVITY_TABS:
+        raise HTTPException(404)
+    return tab
+
+
 def _service_context(
     request: Request, ctx: AppContext, service_type: ServiceType | None
 ) -> tuple[DashboardView, dict[str, object]]:
@@ -174,26 +181,101 @@ def _service_context(
     return view, {**base, "fv": filtered, "service_type": service_type, "layout": layout}
 
 
+@dataclass(frozen=True)
+class PlayRow:
+    play: PlayRecord
+    health: StreamHealth
+    problems: list[ReadProblem]
+
+    @classmethod
+    def of(cls, play: PlayRecord) -> PlayRow:
+        problems = [ReadProblem.model_validate(p) for p in play.problems]
+        return cls(play, StreamHealth(play.outcome), problems)
+
+    @property
+    def stopped_at_pct(self) -> float | None:
+        position, duration = self.play.position_s, self.play.duration_s
+        return 100 * position / duration if position is not None and duration else None
+
+    @property
+    def cursor(self) -> str:
+        return f"{self.play.started_at.isoformat()}~{self.play.id}"
+
+
+def _parse_cursor(value: str | None) -> tuple[datetime, str] | None:
+    if not value:
+        return None
+    started_at, _, play_id = value.partition("~")
+    try:
+        return datetime.fromisoformat(started_at), play_id
+    except ValueError as exc:
+        raise HTTPException(400, "Invalid cursor") from exc
+
+
+def _plays_page(ctx: AppContext, show: str, before: str | None) -> dict[str, object]:
+    """One page of recorded plays (blocking: DB)."""
+    only_problems = show != "all"
+    cursor = _parse_cursor(before)
+    with session_scope(ctx.sessions) as db:
+        plays = history.list_plays(
+            db, only_problems=only_problems, limit=PLAYS_PER_PAGE + 1, before=cursor
+        )
+        with_problems, total = history.count_plays(db)
+    rows = [PlayRow.of(p) for p in plays[:PLAYS_PER_PAGE]]
+    return {
+        "plays": rows,
+        "show": "all" if not only_problems else "problems",
+        "next_cursor": rows[-1].cursor if len(plays) > PLAYS_PER_PAGE else None,
+        "plays_with_problems": with_problems,
+        "plays_total": total,
+    }
+
+
+async def _activity_context(
+    request: Request, ctx: AppContext, tab: str, show: str
+) -> dict[str, object]:
+    _, base = _service_context(request, ctx, None)
+    if tab == "plays" and base["scope"] in (SCOPE_ALL, SCOPE_LOCAL):
+        base.update(await run_in_threadpool(_plays_page, ctx, show, None))
+    return {**base, "tab": tab}
+
+
 @router.get("/activity", response_class=HTMLResponse)
 async def activity(
     request: Request,
     ctx: AppContext = Depends(get_context),
-    tab: ActivityTab = "playback",
+    tab: str = "playback",
+    show: str = "problems",
 ) -> HTMLResponse:
-    _, base = _service_context(request, ctx, None)
-    response = render(
-        request, "pages/activity.html", {**base, "tab": tab, "page_title": "Activity"}
-    )
+    tab = _activity_tab(tab)
+    base = await _activity_context(request, ctx, tab, show)
+    response = render(request, "pages/activity.html", {**base, "page_title": "Activity"})
     remember_scope(request, response, str(base["scope"]))
     return response
 
 
 @router.get("/partials/activity/{tab}", response_class=HTMLResponse)
 async def activity_partial(
-    tab: ActivityTab, request: Request, ctx: AppContext = Depends(get_context)
+    tab: str,
+    request: Request,
+    ctx: AppContext = Depends(get_context),
+    show: str = "problems",
 ) -> HTMLResponse:
-    _, base = _service_context(request, ctx, None)
-    return render(request, "partials/activity_list.html", {**base, "tab": tab})
+    tab = _activity_tab(tab)
+    base = await _activity_context(request, ctx, tab, show)
+    return render(request, "partials/activity_list.html", base)
+
+
+@router.get("/partials/plays", response_class=HTMLResponse)
+async def plays_partial(
+    request: Request,
+    ctx: AppContext = Depends(get_context),
+    show: str = "problems",
+    before: str | None = None,
+) -> HTMLResponse:
+    """The "Load more" button: the next rows, and a new button if there are more."""
+    page = await run_in_threadpool(_plays_page, ctx, show, before)
+    return render(request, "partials/play_rows.html", page)
 
 
 def _service_page_handler(service_type: ServiceType):  # type: ignore[no-untyped-def]
@@ -202,7 +284,7 @@ def _service_page_handler(service_type: ServiceType):  # type: ignore[no-untyped
         response = render(
             request,
             "pages/service.html",
-            {**base, "page_title": service_type.label, "back_href": "/"},
+            {**base, "page_title": service_type.label, "back_href": "/servers"},
         )
         remember_scope(request, response, str(base["scope"]))
         layout = str(base["layout"])

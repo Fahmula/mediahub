@@ -32,10 +32,13 @@ git-ignored. Classes built from variables (e.g. `text-{{ tone }}`) must be safel
   backoff); `DemandTracker` makes polling fast only while someone is viewing; `SnapshotStore`
   is the in-memory source of truth; `issues.py` derives "Needs Attention" from snapshots;
   `service.py` syncs targets with DB instances (`reload_instance` after any CRUD).
+- `monitoring/play_history.py` — the one exception to "monitoring isn't persisted": a poll target
+  records each play matched to InfiniDysk into `play_history` (`history/repository.py`, 30 days).
+  Local only, never sent to peers, and it keeps no client address or read path.
 - `aggregation/dashboard.py` — builds view models for scope `all` / `local` / a peer id.
   Templates only see these view models and normalized models.
 - `web/routes/` — page and `/partials/...` handlers read only the store (async, no upstream
-  calls). Settings handlers do DB work via `run_in_threadpool`.
+  calls). Servers and Settings handlers do DB work via `run_in_threadpool`.
 - `db/` — models, `EncryptedJSON` (Fernet) for secrets, `UTCDateTime`; migrations in
   `migrations/versions/` (keep migrations free of app-type imports: use `sa.Text`/`sa.DateTime`).
 - `peers/redact.py` — strips IPs/paths before data leaves the server (Phase 5 federation).

@@ -24,8 +24,22 @@ class PeerConfig:
     remote_server_id: str | None = None
 
 
+@dataclass(frozen=True)
+class ManagedPeer:
+    """What the Servers page needs of a row: no token, so nothing is decrypted to poll it."""
+
+    id: str
+    name: str
+    enabled: bool
+
+
 def list_peers(db: Session) -> list[Peer]:
     return list(db.scalars(select(Peer).order_by(Peer.name)))
+
+
+def list_managed(db: Session) -> list[ManagedPeer]:
+    rows = db.execute(select(Peer.id, Peer.name, Peer.enabled).order_by(Peer.name))
+    return [ManagedPeer(r.id, r.name, r.enabled) for r in rows]
 
 
 def get_peer(db: Session, peer_id: str) -> Peer | None:

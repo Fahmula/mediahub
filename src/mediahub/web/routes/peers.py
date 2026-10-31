@@ -1,4 +1,4 @@
-"""Settings → Connected servers: linked peers (read from) and access tokens (read by)."""
+"""Servers: linked peers (read from) and access tokens (read by)."""
 
 from __future__ import annotations
 
@@ -22,22 +22,10 @@ from mediahub.web.templating import redirect, render
 
 log = get_logger(__name__)
 router = APIRouter(
-    prefix="/settings/peers", dependencies=[Depends(require_auth), Depends(verify_csrf)]
+    prefix="/servers/peers", dependencies=[Depends(require_auth), Depends(verify_csrf)]
 )
 
 DUPLICATE_NAME = "Another linked server already uses this name."
-
-
-def load_peer_settings(ctx: AppContext) -> dict[str, Any]:
-    """Context for the Connected servers section of the Settings page (blocking: DB)."""
-    with session_scope(ctx.sessions) as db:
-        peers = repository.list_peers(db)
-        grants = tokens.list_grants(db)
-    return {
-        "peers": peers,
-        "peer_states": {p.id: ctx.monitor.store.get_peer(p.id) for p in peers},
-        "grants": grants,
-    }
 
 
 async def _grants_partial(request: Request, ctx: AppContext, **extra: Any) -> HTMLResponse:
@@ -104,7 +92,7 @@ def _form_context(form: PeerForm, peer: Peer | None) -> dict[str, Any]:
         "token_unreadable": peer is not None and not repository.token_readable(peer),
         "insecure": bool(form.base_url) and insecure_transport(form.base_url),
         "page_title": f"Edit {peer.name}" if peer else "Link a server",
-        "back_href": "/settings#peers",
+        "back_href": "/servers",
     }
 
 
@@ -153,7 +141,7 @@ async def create_peer(request: Request, ctx: AppContext = Depends(get_context)) 
         )
     log.info("peer_created", name=form.name)
     await ctx.monitor.reload_peer(peer_id)
-    return redirect("/settings?saved=peer#peers", request)
+    return redirect("/servers?saved=peer", request)
 
 
 @router.post("/test", response_class=HTMLResponse)
@@ -220,7 +208,7 @@ async def update_peer(
         )
     log.info("peer_updated", name=form.name)
     await ctx.monitor.reload_peer(peer_id)
-    return redirect("/settings?saved=peer#peers", request)
+    return redirect("/servers?saved=peer", request)
 
 
 @router.post("/{peer_id}/toggle")
@@ -236,7 +224,7 @@ async def toggle_peer(
 
     await run_in_threadpool(flip)
     await ctx.monitor.reload_peer(peer_id)
-    return redirect("/settings#peers", request)
+    return redirect("/servers", request)
 
 
 @router.post("/{peer_id}/delete")
@@ -255,4 +243,4 @@ async def delete_peer(
     name = await run_in_threadpool(remove)
     log.info("peer_deleted", name=name)
     await ctx.monitor.reload_peer(peer_id)
-    return redirect("/settings?saved=peer-deleted#peers", request)
+    return redirect("/servers?saved=peer-deleted", request)

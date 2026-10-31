@@ -62,6 +62,12 @@
       document.cookie = `mh_theme=${light ? "light" : "dark"}; path=/; max-age=31536000; samesite=lax`;
       return;
     }
+    // Back to the page the user came from, when it's one of ours; otherwise the link's own href.
+    if (evt.target.closest("[data-back]") && document.referrer.startsWith(`${location.origin}/`)) {
+      evt.preventDefault();
+      history.back();
+      return;
+    }
     const copyBtn = evt.target.closest("[data-copy]");
     if (copyBtn) {
       const input = document.getElementById(copyBtn.dataset.copy);
@@ -103,6 +109,13 @@
     if (elt instanceof Element && elt.hasAttribute("data-poll") && evt.detail.successful) {
       elt.dataset.loaded = "1";
     }
+  });
+
+  // The server doesn't know the viewer's time zone.
+  htmx.onLoad((root) => {
+    root.querySelectorAll?.("time[data-local]").forEach((el) => {
+      el.textContent = new Date(el.dateTime).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    });
   });
 
   let offline = false;

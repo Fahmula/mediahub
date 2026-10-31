@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from urllib.parse import quote
 
 from fastapi import FastAPI, Request
@@ -19,9 +20,11 @@ from mediahub.db.app_settings import ensure_identity
 from mediahub.db.crypto import Keyring, load_master_secret, set_keyring
 from mediahub.db.models import User
 from mediahub.db.session import make_engine, make_sessionmaker, run_migrations, session_scope
+from mediahub.history import repository as history
 from mediahub.logging import configure_logging, get_logger
 from mediahub.monitoring.demand import DemandTracker
 from mediahub.monitoring.issue_states import IssueStates
+from mediahub.monitoring.play_history import RETENTION
 from mediahub.monitoring.service import MonitoringService
 from mediahub.monitoring.store import SnapshotStore
 from mediahub.peers import api as peer_api
@@ -31,7 +34,7 @@ from mediahub.security.passwords import MIN_PASSWORD_LENGTH, hash_password
 from mediahub.security.sessions import purge_expired
 from mediahub.web.deps import LoginRequired, SetupRequired, has_users
 from mediahub.web.image_cache import ImageCache
-from mediahub.web.routes import auth, health, images, pages, peers, pwa
+from mediahub.web.routes import auth, health, images, pages, peers, pwa, servers
 from mediahub.web.routes import settings as settings_routes
 from mediahub.web.templating import STATIC_DIR, is_htmx, render
 
@@ -50,6 +53,7 @@ def _build_context(settings: Settings) -> AppContext:
     with session_scope(sessions) as db:
         identity = ensure_identity(db, settings.server_name)
         purge_expired(db)
+        history.prune(db, datetime.now(UTC) - RETENTION)
         _bootstrap_admin(settings, db)
 
     issue_states = IssueStates(sessions)
@@ -154,6 +158,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(images.router)
     app.include_router(peer_api.router)
     app.include_router(settings_routes.router)
+    app.include_router(servers.router)
     app.include_router(peers.router)
     app.include_router(pages.router)
     return app

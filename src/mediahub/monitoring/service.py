@@ -5,12 +5,13 @@ from __future__ import annotations
 import asyncio
 from collections.abc import Callable
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 from sqlalchemy.orm import Session, sessionmaker
 
 from mediahub.config import Settings
 from mediahub.db.session import session_scope
+from mediahub.history import repository as history
 from mediahub.instances import repository
 from mediahub.integrations.base import ConnectionTestResult, InstanceConfig, Integration
 from mediahub.integrations.demo import (
@@ -18,13 +19,16 @@ from mediahub.integrations.demo import (
     DemoNextEpisodeTarget,
     DemoPeerTarget,
     demo_local_configs,
+    demo_play_rows,
 )
+from mediahub.integrations.infinidysk.integration import InfiniDyskIntegration
 from mediahub.integrations.registry import integration_class
 from mediahub.logging import get_logger
 from mediahub.models.common import ServiceStatus, ServiceType, SourceRef
 from mediahub.models.snapshot import ServiceSnapshot
 from mediahub.monitoring.demand import DemandTracker
 from mediahub.monitoring.next_episode import NextEpisodeTarget
+from mediahub.monitoring.play_history import PlayHistoryTarget
 from mediahub.monitoring.poller import Poller
 from mediahub.monitoring.store import SnapshotStore
 from mediahub.monitoring.targets import InstanceTarget
@@ -36,6 +40,8 @@ from mediahub.peers.target import PeerTarget, target_key
 log = get_logger(__name__)
 
 TEST_TIMEOUT_S = 20.0
+BOOST_S = 30.0
+PLAYBACK_SERVICES = (ServiceType.EMBY, ServiceType.INFINIDYSK)
 
 
 @dataclass(frozen=True)
@@ -88,6 +94,8 @@ class MonitoringService:
                 )
             await self.poller.add(DemoPeerTarget(self.store))
             await self.poller.add(DemoNextEpisodeTarget(self.store))
+            await asyncio.to_thread(self._seed_demo_plays)
+        await self.poller.add(PlayHistoryTarget(self.store, self._sessions, self._emby_instances))
         log.info("monitoring_started", targets=len(self.poller.keys), demo=self._settings.demo_mode)
 
     async def stop(self) -> None:
@@ -95,6 +103,10 @@ class MonitoringService:
         await self.store.issue_states.aclose()
         if self._background:
             await asyncio.gather(*self._background, return_exceptions=True)
+
+    def _seed_demo_plays(self) -> None:
+        with session_scope(self._sessions) as db:
+            history.replace_demo_plays(db, demo_play_rows(datetime.now(UTC)))
 
     # ----- instances -------------------------------------------------------------------
     def source_for(self, config: InstanceConfig) -> SourceRef:
@@ -138,16 +150,35 @@ class MonitoringService:
                     source=source,
                     status=ServiceStatus.ERROR,
                     error="Stored credentials can't be decrypted (was the secret key changed?). "
-                    "Re-enter them in Settings → Services.",
+                    "Re-enter them under Servers (Edit).",
                 )
             self.store.put_local(snapshot, order=item.order)
             return
         integration = integration_class(config.service_type)(config, source)
+        if isinstance(integration, InfiniDyskIntegration):
+            integration.on_read_started(self._boost_playback)
         await self.poller.add(
             InstanceTarget(
                 integration, self.store, order=item.order, on_status=self._persist_status
             )
         )
+
+    def _boost_playback(self) -> None:
+        """A stream just started: idle polling could miss a play that fails within a minute."""
+        for key in self.poller.keys:
+            target = self.poller.get(key)
+            if (
+                isinstance(target, InstanceTarget)
+                and target.integration.config.service_type in PLAYBACK_SERVICES
+            ):
+                target.boost(BOOST_S)
+
+    def _emby_instances(self) -> set[str]:
+        return {
+            i.config.id
+            for i in self.local_integrations()
+            if i.config.service_type is ServiceType.EMBY
+        }
 
     def integration(self, instance_id: str) -> Integration | None:
         """The live integration polling a local instance, e.g. to proxy its images."""
@@ -213,7 +244,7 @@ class MonitoringService:
             state.status = ServiceStatus.ERROR
             state.error = (
                 "The stored access token can't be decrypted (was the secret key changed?). "
-                "Enter it again in Settings → Connected servers."
+                "Enter it again under Servers (Edit)."
             )
             return
         await self.poller.add(

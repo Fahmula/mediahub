@@ -4,7 +4,7 @@
 {% set blurbs = {"emby": "Live playback sessions, transcoding and stream details.", "sonarr": "TV download queue, import problems and health checks.", "radarr": "Movie download queue, import problems and health checks.", "infinidysk": "Streaming health, throughput, cache and provider status."} %}
 <div class="mx-auto grid max-w-3xl grid-cols-1 gap-3 sm:grid-cols-2">
   {% for t in types %}
-  <a href="/settings/services/new?type={{ t.value }}" class="panel flex items-start gap-3 p-4 transition-colors hover:border-primary/50">
+  <a href="/servers/services/new?type={{ t.value }}" class="panel flex items-start gap-3 p-4 transition-colors hover:border-primary/50">
     {{ ui.service_tile(t.value, "size-11", "size-5") }}
     <div><p class="font-semibold">{{ t.label }}</p><p class="text-sm muted">{{ blurbs[t.value] }}</p></div>
   </a>

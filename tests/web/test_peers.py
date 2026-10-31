@@ -60,7 +60,7 @@ def _csrf(client: TestClient) -> dict[str, str]:
 
 
 def _grant(client: TestClient, label: str = "Bravo") -> str:
-    resp = client.post("/settings/peers/grants", data={"label": label}, headers=_csrf(client))
+    resp = client.post("/servers/peers/grants", data={"label": label}, headers=_csrf(client))
     match = re.search(r'value="(mhp_[^"]+)"', resp.text)
     assert match, resp.text
     return match.group(1)
@@ -98,11 +98,11 @@ def _link(server_b: TestClient, token: str, **overrides: str) -> httpx.Response:
         "csrf_token": csrf_from(server_b.get("/settings").text),
         **overrides,
     }
-    return server_b.post("/settings/peers/new", data=data, follow_redirects=False)
+    return server_b.post("/servers/peers/new", data=data, follow_redirects=False)
 
 
 def _peer_id(server_b: TestClient) -> str:
-    match = re.search(r'href="/settings/peers/([0-9a-f-]{36})"', server_b.get("/settings").text)
+    match = re.search(r'href="/servers/peers/([0-9a-f-]{36})"', server_b.get("/servers").text)
     assert match
     return match.group(1)
 
@@ -134,17 +134,17 @@ def test_snapshot_serves_only_local_redacted_data(server_a: TestClient) -> None:
 
 def test_token_is_shown_once_and_revocation_cuts_access(server_a: TestClient) -> None:
     token = _grant(server_a)
-    page = server_a.get("/settings").text
+    page = server_a.get("/servers").text
     assert token not in page and token[:10] in page
     auth = {"Authorization": f"Bearer {token}"}
     assert server_a.get("/peer/v1/snapshot", headers=auth).status_code == 200
-    assert "last used" in server_a.get("/settings").text
+    assert "last used" in server_a.get("/servers").text
 
-    grant_id = re.search(r"/settings/peers/grants/(\d+)/revoke", page)
+    grant_id = re.search(r"/servers/peers/grants/(\d+)/revoke", page)
     assert grant_id
-    server_a.post(f"/settings/peers/grants/{grant_id.group(1)}/revoke", headers=_csrf(server_a))
+    server_a.post(f"/servers/peers/grants/{grant_id.group(1)}/revoke", headers=_csrf(server_a))
     assert server_a.get("/peer/v1/snapshot", headers=auth).status_code == 401
-    assert "Revoked" in server_a.get("/settings").text
+    assert "Revoked" in server_a.get("/servers").text
 
 
 def test_failed_attempts_are_rate_limited(server_a: TestClient) -> None:
@@ -171,10 +171,9 @@ def test_link_a_peer_and_see_its_servers(
 
     servers = server_b.get("/servers").text
     assert "Alpha" in servers and "Peer · read-only" in servers
-    assert "Alpha" in server_b.get("/settings").text
 
     # The token never reaches the page; it's write-only.
-    assert token not in server_b.get(f"/settings/peers/{peer_id}").text
+    assert token not in server_b.get(f"/servers/peers/{peer_id}").text
 
     # While someone watches B, B asks A for fresh data.
     server_b.get("/")
@@ -189,11 +188,11 @@ def test_peer_connection_test_and_wrong_token(
 ) -> None:
     token = _grant(server_a)
     ok = server_b.post(
-        "/settings/peers/test", data={"base_url": A_URL, "token": token}, headers=_csrf(server_b)
+        "/servers/peers/test", data={"base_url": A_URL, "token": token}, headers=_csrf(server_b)
     )
     assert "Connected" in ok.text and "Alpha" in ok.text
     bad = server_b.post(
-        "/settings/peers/test",
+        "/servers/peers/test",
         data={"base_url": A_URL, "token": "mhp_wrong-wrong-wrong-wrong"},
         headers=_csrf(server_b),
     )
@@ -218,13 +217,13 @@ def test_edit_keeps_token_and_unlink_removes_peer(
         "enabled": "on",
         "csrf_token": csrf_from(server_b.get("/settings").text),
     }
-    resp = server_b.post(f"/settings/peers/{peer_id}", data=data, follow_redirects=False)
+    resp = server_b.post(f"/servers/peers/{peer_id}", data=data, follow_redirects=False)
     assert resp.status_code == 303
     store = server_b.app.state.ctx.monitor.store  # type: ignore[attr-defined]
     state = store.get_peer(peer_id)
     assert state.name == "Alpha renamed" and state.status.value == "ok", state.error
 
-    server_b.post(f"/settings/peers/{peer_id}/delete", headers=_csrf(server_b))
+    server_b.post(f"/servers/peers/{peer_id}/delete", headers=_csrf(server_b))
     assert store.get_peer(peer_id) is None
     assert "Alpha renamed" not in server_b.get("/servers").text
 

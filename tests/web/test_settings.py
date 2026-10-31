@@ -40,11 +40,11 @@ def _create(client: TestClient, **overrides: str) -> httpx.Response:
         "csrf_token": _token(client),
         **overrides,
     }
-    return client.post("/settings/services/new", data=data, follow_redirects=False)
+    return client.post("/servers/services/new", data=data, follow_redirects=False)
 
 
 def _instance_id(client: TestClient) -> str:
-    match = re.search(r'href="/settings/services/([0-9a-f-]{36})"', client.get("/settings").text)
+    match = re.search(r'href="/servers/services/([0-9a-f-]{36})"', client.get("/servers").text)
     assert match
     return match.group(1)
 
@@ -54,11 +54,10 @@ def test_create_edit_and_secrets_never_rendered(
 ) -> None:
     resp = _create(authed)
     assert resp.status_code == 303, resp.text
-    settings_page = authed.get("/settings").text
-    assert "TV" in settings_page and "http://sonarr:8989" in settings_page
+    assert "TV" in authed.get("/servers").text
     instance_id = _instance_id(authed)
 
-    edit = authed.get(f"/settings/services/{instance_id}").text
+    edit = authed.get(f"/servers/services/{instance_id}").text
     assert SECRET not in edit
     assert "saved — leave blank to keep" in edit
     for page in ("/", "/sonarr", "/servers", "/settings"):
@@ -66,7 +65,7 @@ def test_create_edit_and_secrets_never_rendered(
 
     # Editing without re-entering the key keeps it.
     resp = authed.post(
-        f"/settings/services/{instance_id}",
+        f"/servers/services/{instance_id}",
         data={
             "name": "TV Shows",
             "base_url": "http://sonarr:8989",
@@ -78,7 +77,7 @@ def test_create_edit_and_secrets_never_rendered(
     )
     assert resp.status_code == 303, resp.text
     assert sonarr_api.calls.last.request.headers["x-api-key"] == SECRET
-    assert "TV Shows" in authed.get("/settings").text
+    assert "TV Shows" in authed.get("/servers").text
 
 
 def test_secret_encrypted_in_database(authed: TestClient, sonarr_api: respx.MockRouter) -> None:
@@ -106,7 +105,7 @@ def test_duplicate_name_rejected(authed: TestClient, sonarr_api: respx.MockRoute
 def test_connection_test_endpoint(authed: TestClient, sonarr_api: respx.MockRouter) -> None:
     token = _token(authed)
     resp = authed.post(
-        "/settings/services/test",
+        "/servers/services/test",
         data={
             "service_type": "sonarr",
             "name": "TV",
@@ -120,7 +119,7 @@ def test_connection_test_endpoint(authed: TestClient, sonarr_api: respx.MockRout
 
     sonarr_api.get("http://sonarr:8989/api/v3/system/status").mock(return_value=httpx.Response(401))
     resp = authed.post(
-        "/settings/services/test",
+        "/servers/services/test",
         data={
             "service_type": "sonarr",
             "name": "TV",
@@ -137,12 +136,12 @@ def test_toggle_and_delete(authed: TestClient, sonarr_api: respx.MockRouter) -> 
     _create(authed)
     instance_id = _instance_id(authed)
     headers = {"X-CSRF-Token": _token(authed), "HX-Request": "true"}
-    resp = authed.post(f"/settings/services/{instance_id}/toggle", headers=headers)
-    assert resp.status_code == 204 and resp.headers["hx-redirect"] == "/settings"
-    assert "Enable" in authed.get("/settings").text
-    resp = authed.post(f"/settings/services/{instance_id}/delete", headers=headers)
+    resp = authed.post(f"/servers/services/{instance_id}/toggle", headers=headers)
+    assert resp.status_code == 204 and resp.headers["hx-redirect"] == "/servers"
+    assert "Enable" in authed.get("/servers").text
+    resp = authed.post(f"/servers/services/{instance_id}/delete", headers=headers)
     assert resp.status_code == 204
-    assert instance_id not in authed.get("/settings").text
+    assert instance_id not in authed.get("/servers").text
 
 
 def test_state_change_without_csrf_rejected(authed: TestClient) -> None:
@@ -186,7 +185,7 @@ def test_emby_next_episode_options_round_trip(authed: TestClient) -> None:
             return_value=httpx.Response(200, json={"Version": "4.11.0.9"})
         )
         router.get("http://emby:8096/emby/Sessions").mock(return_value=httpx.Response(200, json=[]))
-        form = authed.get("/settings/services/new?type=emby").text
+        form = authed.get("/servers/services/new?type=emby").text
         assert 'name="option_next_episode_check"' in form and 'type="checkbox"' in form
         resp = _create(
             authed,
@@ -197,6 +196,6 @@ def test_emby_next_episode_options_round_trip(authed: TestClient) -> None:
             option_next_episode_percent="70",
         )
         assert resp.status_code == 303, resp.text
-        edit = authed.get(f"/settings/services/{_instance_id(authed)}").text
+        edit = authed.get(f"/servers/services/{_instance_id(authed)}").text
     assert re.search(r'name="option_next_episode_check"\s+checked', edit)
     assert re.search(r'name="option_next_episode_percent" value="70"', edit)

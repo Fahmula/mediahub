@@ -1,6 +1,30 @@
 {% extends "layouts/app.html" %}
 {% import "components/ui.html" as ui %}
-{% import "components/items.html" as items %}
 {% block content %}
-{% call ui.poll_section("sec-servers", "/partials/servers?server=all", 15) %}{% include "partials/servers.html" %}{% endcall %}
+<div class="mx-auto max-w-4xl space-y-4 lg:space-y-6">
+  {% if notice == "service" %}<div role="status" class="alert alert-success alert-soft text-sm">{{ icon("circle-check", "size-4") }} Service saved. Its status updates below within a few seconds.</div>{% endif %}
+  {% if notice == "peer" %}<div role="status" class="alert alert-success alert-soft text-sm">{{ icon("circle-check", "size-4") }} Linked server saved. Its data appears within a few seconds.</div>{% endif %}
+  {% if notice == "peer-deleted" %}<div role="status" class="alert alert-info alert-soft text-sm">{{ icon("trash-2", "size-4") }} Server unlinked.</div>{% endif %}
+  {% if notice == "deleted" %}<div role="status" class="alert alert-info alert-soft text-sm">{{ icon("trash-2", "size-4") }} Service removed.</div>{% endif %}
+
+  {% call ui.poll_section("sec-servers", "/partials/servers?server=all", 15) %}{% include "partials/servers.html" %}{% endcall %}
+
+  <section class="panel p-4">
+    <div class="flex items-start gap-3">
+      <span class="svc-tile svc-peer size-9">{{ icon("network", "size-4.5") }}</span>
+      <div class="min-w-0 flex-1 space-y-1">
+        <h2 class="font-semibold">Connect another MediaHub</h2>
+        <p class="text-sm muted">Link a trusted MediaHub (for example over Tailscale) to see its activity here, read-only. Create an access token on one server and paste it into the other.</p>
+        <a href="/servers/peers/new" class="btn btn-primary btn-sm mt-2">{{ icon("link-2", "size-4") }} Link a server</a>
+      </div>
+    </div>
+  </section>
+
+  {# Not polled: a refresh would wipe a new token, which is shown only once. #}
+  <section class="panel p-4" id="tokens">
+    <h2 class="flex items-center gap-2 font-semibold">{{ icon("key-round", "size-4") }} Access tokens</h2>
+    <p class="mb-3 mt-1 text-sm muted">Let another MediaHub read this server: create a token here and paste it into that server's “Link a server” form. Client IPs and file paths are never shared.</p>
+    {% include "partials/settings/grants.html" %}
+  </section>
+</div>
 {% endblock %}
