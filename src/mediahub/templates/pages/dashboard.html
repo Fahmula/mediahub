@@ -5,10 +5,10 @@
 <div class="space-y-4 lg:space-y-6">
   {% call ui.poll_section("sec-streams", "/partials/dashboard/streams" ~ q, 5, "panel p-3") %}{% include "partials/dashboard/streams.html" %}{% endcall %}
   {% call ui.poll_section("sec-attention", "/partials/dashboard/attention" ~ q, 10) %}{% include "partials/dashboard/attention.html" %}{% endcall %}
-  {% call ui.poll_section("sec-summary", "/partials/dashboard/summary" ~ q, 10) %}{% include "partials/dashboard/summary.html" %}{% endcall %}
   <div class="grid grid-cols-1 items-start gap-4 lg:grid-cols-2 lg:gap-6">
     {% call ui.poll_section("sec-downloads", "/partials/dashboard/downloads" ~ q, 5, "panel p-3") %}{% include "partials/dashboard/downloads.html" %}{% endcall %}
     {% call ui.poll_section("sec-infinidysk", "/partials/dashboard/infinidysk" ~ q, 10, "panel p-3") %}{% include "partials/dashboard/infinidysk.html" %}{% endcall %}
   </div>
+  {% call ui.poll_section("sec-summary", "/partials/dashboard/summary" ~ q, 10) %}{% include "partials/dashboard/summary.html" %}{% endcall %}
 </div>
 {% endblock %}
