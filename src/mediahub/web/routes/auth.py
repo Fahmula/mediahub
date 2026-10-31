@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from mediahub.db.models import User
 from mediahub.logging import get_logger
+from mediahub.push import repository as push_repository
 from mediahub.security import csrf
 from mediahub.security.passwords import (
     DUMMY_HASH,
@@ -22,7 +23,12 @@ from mediahub.security.passwords import (
     verify_password,
 )
 from mediahub.security.ratelimit import RateLimiter
-from mediahub.security.sessions import COOKIE_NAME, create_session, delete_session
+from mediahub.security.sessions import (
+    COOKIE_NAME,
+    create_session,
+    delete_session,
+    session_hash,
+)
 from mediahub.web.deps import Ctx, Db, has_users, require_auth, session_lifetime
 from mediahub.web.templating import cookie_secure, render
 
@@ -160,6 +166,7 @@ def logout(request: Request, db: Db) -> Response:
     token = request.cookies.get(COOKIE_NAME)
     if token:
         delete_session(db, token)
+        push_repository.delete_for_session(db, session_hash(token))
     response = RedirectResponse("/login", status_code=303)
     if request.headers.get("hx-request") == "true":
         response = Response(status_code=204, headers={"HX-Redirect": "/login"})

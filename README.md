@@ -11,6 +11,8 @@ Redis, no Node.js at runtime.
 
 - **Dashboard:** now playing first, then Needs Attention, downloads, InfiniDysk and your servers.
   Built for phones, with a bottom nav and live counts.
+- **Notifications:** an alert on your phone when something breaks, even with the app closed, and a
+  follow-up when it clears.
 - **Emby:** live sessions with posters, progress and transcode details, in a detailed or compact
   layout.
 - **Sonarr and Radarr:** the download queue and recent history, with season packs grouped into one
@@ -54,7 +56,26 @@ See [docs/unraid.md](docs/unraid.md). A template is in
 Served over HTTPS, MediaHub can be installed from the browser (**Install app** /
 **Add to Home Screen**) and opens like a native app, with an offline page when the server is
 unreachable. The service worker only caches static assets and that page, never monitoring
-data. Over plain `http://` it works as a normal website.
+data; it shows notifications as they arrive but doesn't keep them. Over plain `http://` it works
+as a normal website.
+
+### Notifications
+
+Turn them on per device under **Settings → Notifications**, and use **Send a test** to check that
+one arrives. They need HTTPS. On iPhone and iPad they also need iOS 16.4 or later, with MediaHub
+added to the Home Screen and opened from there.
+
+A device is told about **errors** (a service down, a failed download, a linked server offline) and
+when they clear, including errors on linked servers. Warnings stay in Needs Attention. To avoid
+false alarms a problem has to last about 2 minutes before it alerts and stay gone for 5 before
+it's called resolved, and each problem alerts once. Problems that started before a device was
+turned on, and anything you've acknowledged or muted, don't alert.
+
+Delivery goes through your browser's push service (Apple, Google, Mozilla or Microsoft), so
+MediaHub needs outbound HTTPS. Messages are end-to-end encrypted, with file paths removed first:
+the push service sees when a message was sent and its rough size, not what it says. The text can
+appear on your lock screen, and that includes download titles. Signing out turns notifications off
+for that device; a login that simply expires doesn't.
 
 ### Link two installs
 
@@ -102,6 +123,7 @@ Everything except the environment below lives in the web UI and the `/config` vo
 | `MEDIAHUB_SECRET_KEY` | *(generated)* | Optional master key; otherwise `/config/secret.key` is created |
 | `MEDIAHUB_ADMIN_USER` / `MEDIAHUB_ADMIN_PASSWORD` | – | Optional headless admin creation (only while no user exists) |
 | `MEDIAHUB_DEMO_MODE` | `false` | Generated sample data |
+| `MEDIAHUB_PUSH_CONTACT` | project URL | Contact (URL or `mailto:`) sent to browser push services with each notification |
 | `PUID` / `PGID` / `UMASK` | `99` / `100` / `022` | Container user (Unraid defaults) |
 
 **Back up `/config/mediahub.db` and `/config/secret.key` together.** Service credentials are
@@ -116,7 +138,8 @@ encrypted with a key derived from `secret.key`; without it they must be re-enter
 - Service API keys are encrypted at rest (Fernet), sent to services only in headers, never
   rendered back to the browser, and redacted from logs.
 - Redirects from services are never followed; the browser can't make MediaHub fetch arbitrary
-  URLs. InfiniDysk calls are restricted to a read-only allowlist (some of its GET routes change
+  URLs. Notification addresses come from the browser, so only known browser push services are
+  accepted, and they're encrypted at rest. InfiniDysk calls are restricted to a read-only allowlist (some of its GET routes change
   state). The one write is the optional next-episode health check, which sends InfiniDysk's own
   recheck request.
 - Linked servers authenticate with a bearer token (stored only as a SHA-256 hash, revocable,
@@ -197,7 +220,8 @@ src/mediahub/
   monitoring/     poller (one task per target), demand tracker, in-memory snapshot store, issues
   aggregation/    view models for "all servers" / "this server" / one peer
   web/            routes, templates helpers; templates/ and static/ alongside
-  history/        play history storage (the one monitoring record kept in the database)
+  history/        play history storage
+  push/           Web Push: encryption and signing, delivery with retries, subscriptions
   db/ security/ instances/ peers/
 ```
 

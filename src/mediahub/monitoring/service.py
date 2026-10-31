@@ -28,6 +28,7 @@ from mediahub.models.common import ServiceStatus, ServiceType, SourceRef
 from mediahub.models.snapshot import ServiceSnapshot
 from mediahub.monitoring.demand import DemandTracker
 from mediahub.monitoring.next_episode import NextEpisodeTarget
+from mediahub.monitoring.notify import NotifyTarget
 from mediahub.monitoring.play_history import PlayHistoryTarget
 from mediahub.monitoring.poller import Poller
 from mediahub.monitoring.store import SnapshotStore
@@ -36,6 +37,7 @@ from mediahub.peers import repository as peer_repository
 from mediahub.peers.client import PeerClient
 from mediahub.peers.repository import PeerConfig
 from mediahub.peers.target import PeerTarget, target_key
+from mediahub.push.dispatcher import PushDispatcher
 
 log = get_logger(__name__)
 
@@ -69,11 +71,13 @@ class MonitoringService:
         sessions: sessionmaker[Session],
         store: SnapshotStore,
         demand: DemandTracker,
+        push: PushDispatcher | None = None,
     ) -> None:
         self._settings = settings
         self._sessions = sessions
         self.store = store
         self.demand = demand
+        self.push = push  # None in demo mode
         self.poller = Poller(demand)
         self._background: set[asyncio.Task[None]] = set()
 
@@ -96,10 +100,18 @@ class MonitoringService:
             await self.poller.add(DemoNextEpisodeTarget(self.store))
             await asyncio.to_thread(self._seed_demo_plays)
         await self.poller.add(PlayHistoryTarget(self.store, self._sessions, self._emby_instances))
+        if self.push is not None:
+            self.push.start()
+            # Last: it reads the poller's keys to tell "not polled yet" from "removed".
+            await self.poller.add(
+                NotifyTarget(self.store, self._sessions, self.push, lambda: self.poller.keys)
+            )
         log.info("monitoring_started", targets=len(self.poller.keys), demo=self._settings.demo_mode)
 
     async def stop(self) -> None:
         await self.poller.stop()
+        if self.push is not None:
+            await self.push.stop()
         await self.store.issue_states.aclose()
         if self._background:
             await asyncio.gather(*self._background, return_exceptions=True)

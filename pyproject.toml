@@ -18,6 +18,8 @@ dependencies = [
     "cryptography>=43",
     "python-multipart>=0.0.18",
     "websockets>=14",
+    "http-ece>=1.2.1",
+    "py-vapid>=1.9.6",
 ]
 
 [project.scripts]
@@ -64,6 +66,12 @@ filterwarnings = [
 
 [tool.mypy]
 python_version = "3.12"
-packages = ["mediahub.models", "mediahub.integrations", "mediahub.monitoring", "mediahub.peers"]
+packages = [
+    "mediahub.models",
+    "mediahub.integrations",
+    "mediahub.monitoring",
+    "mediahub.peers",
+    "mediahub.push",
+]
 mypy_path = "src"
 ignore_missing_imports = true

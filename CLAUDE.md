@@ -44,9 +44,16 @@ git-ignored. Classes built from variables (e.g. `text-{{ tone }}`) must be safel
   backoff); `DemandTracker` makes polling fast only while someone is viewing; `SnapshotStore`
   is the in-memory source of truth; `issues.py` derives "Needs Attention" from snapshots;
   `service.py` syncs targets with DB instances (`reload_instance` after any CRUD).
-- `monitoring/play_history.py` — the one exception to "monitoring isn't persisted": a poll target
+- `monitoring/play_history.py` — an exception to "monitoring isn't persisted": a poll target
   records each play matched to InfiniDysk into `play_history` (`history/repository.py`, 30 days).
   Local only, never sent to peers, and it keeps no client address or read path.
+- `monitoring/notify.py` — the other exception: `NotifyTarget` watches ERROR issues across all
+  servers and keeps `notify_incidents` so a restart can't repeat an alert. `incident_key` replaces
+  fingerprints here, and an issue missing from a view only counts as resolved if the service was
+  seen working (`Sight`). Not in demo mode.
+- `push/` — Web Push. `messages.py` is the only place text leaves for a push service (redacted,
+  links kept to this server); `dispatcher.py` sends and retries from its own task. Endpoints are
+  credentials: encrypted at rest, allowlisted (`webpush.endpoint_host`), only the host is logged.
 - `aggregation/dashboard.py` — builds view models for scope `all` / `local` / a peer id.
   Templates only see these view models and normalized models.
 - `web/routes/` — page and `/partials/...` handlers read only the store (async, no upstream
@@ -62,6 +69,8 @@ git-ignored. Classes built from variables (e.g. `text-{{ tone }}`) must be safel
 
 - **Single process only.** Poller + cache are in-process; `runtime_lock.py` enforces one
   process per config dir. Never raise uvicorn `workers`.
+- **No network I/O in `run_once` of `NotifyTarget`:** a poll slot has a timeout and a push service
+  can be slow. Queue on the dispatcher, before the first `await` after deciding.
 - **Secrets:** never render, log, or put API keys in URLs (headers only). Secret form fields are
   write-only (blank = keep stored). The logging redaction processor masks sensitive keys.
 - **CSP is strict:** no inline `<script>`, no `hx-on`, no htmx trigger filters (`[cond]`, they

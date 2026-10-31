@@ -1,0 +1,22 @@
+{% if not push_public_key %}
+<p class="text-sm muted">Notifications are off in demo mode.</p>
+{% else %}
+<div data-push-panel data-public-key="{{ push_public_key }}" class="space-y-3">
+  <p class="text-sm muted">Get an alert on this device when something breaks, even with MediaHub closed, and a follow-up when it clears. Only errors notify; warnings stay in Needs Attention.</p>
+  <p data-push-state="loading" class="text-sm muted">Checking this browser…</p>
+  <p data-push-state="https" class="text-sm text-warning" hidden>Notifications need HTTPS. Open MediaHub over https:// to turn them on.</p>
+  <p data-push-state="install" class="text-sm text-warning" hidden>On iPhone and iPad, add MediaHub to your Home Screen first (Share → Add to Home Screen), then open it from there. Needs iOS 16.4 or later.</p>
+  <p data-push-state="unsupported" class="text-sm text-warning" hidden>This browser doesn't support notifications.</p>
+  <p data-push-state="denied" class="text-sm text-warning" hidden>Notifications are blocked for this site. Allow them in your browser or system settings, then reload.</p>
+  <div data-push-state="off" class="flex flex-wrap items-center gap-2" hidden>
+    <button type="button" class="btn btn-primary btn-sm" data-push-enable>{{ icon("bell", "size-4") }} Turn on for this device</button>
+  </div>
+  <div data-push-state="on" class="flex flex-wrap items-center gap-2" hidden>
+    <span class="flex items-center gap-1 text-sm text-success">{{ icon("circle-check", "size-4") }} On for this device</span>
+    <button type="button" class="btn btn-outline btn-sm" data-push-test>{{ icon("bell", "size-4") }} Send a test</button>
+    <button type="button" class="btn btn-ghost btn-sm" data-push-disable>{{ icon("bell-off", "size-4") }} Turn off</button>
+  </div>
+  {% include "partials/settings/notification_devices.html" %}
+  <p class="text-xs muted">Notifications travel encrypted through your browser's push service (Apple, Google, Mozilla or Microsoft), and their text can show on your lock screen.</p>
+</div>
+{% endif %}

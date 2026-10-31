@@ -33,6 +33,10 @@ def _hash(token: str) -> str:
     return hashlib.sha256(token.encode()).hexdigest()
 
 
+def session_hash(token: str) -> str:
+    return _hash(token)
+
+
 def create_session(
     db: Session, user: User, *, lifetime: timedelta, ip: str | None, user_agent: str | None
 ) -> str:

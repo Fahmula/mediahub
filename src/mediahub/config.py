@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # Proxy headers (X-Forwarded-For/Proto) are trusted only from these addresses.
     trusted_proxies: str = "127.0.0.1"
 
+    # Contact sent to browser push services with each notification (a URL or mailto:).
+    push_contact: str = "https://github.com/Fahmula/mediahub"
+
     @cached_property
     def db_path(self) -> Path:
         return self.config_dir / "mediahub.db"

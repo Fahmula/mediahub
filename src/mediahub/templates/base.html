@@ -17,7 +17,7 @@
   <script src="{{ static_url('vendor/htmx-2.0.10.min.js') }}" defer></script>
   <script src="{{ static_url('js/app.js') }}" defer></script>
 </head>
-<body class="min-h-dvh" hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
+<body class="min-h-dvh"{% if auth %} data-signed-in{% endif %} hx-headers='{"X-CSRF-Token": "{{ csrf_token }}"}'>
 {% block body %}{% endblock %}
 </body>
 </html>

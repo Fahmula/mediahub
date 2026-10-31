@@ -1,7 +1,8 @@
-"""ORM models: configuration, plus the play history.
+"""ORM models: configuration, plus the play history and notification state.
 
-Monitoring data is otherwise never persisted. ``play_history`` is the exception, because
-nothing upstream can answer "what went wrong during that play" afterwards.
+Monitoring data is otherwise never persisted. ``play_history`` is an exception, because
+nothing upstream can answer "what went wrong during that play" afterwards. ``notify_incidents``
+is the other: a restart must not repeat alerts, or lose the follow-up to one already sent.
 """
 
 from __future__ import annotations
@@ -160,3 +161,49 @@ class PlayRecord(Base):
     problem_count: Mapped[int] = mapped_column(Integer)
     problems: Mapped[list[dict[str, Any]]] = mapped_column(JSON)
     incomplete: Mapped[bool] = mapped_column(Boolean)
+
+
+class PushSubscription(Base):
+    """A browser that receives notifications. Its endpoint works as a credential."""
+
+    __tablename__ = "push_subscriptions"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_uuid)
+    endpoint_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    secrets: Mapped[dict[str, Any]] = mapped_column(EncryptedJSON)
+    host: Mapped[str] = mapped_column(String(255))
+    label: Mapped[str] = mapped_column(String(128))
+    # No FK: a subscription has to keep working after the session that made it expires.
+    session_hash: Mapped[str | None] = mapped_column(String(64), index=True)
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+    last_success_at: Mapped[datetime | None]
+    last_error: Mapped[str | None] = mapped_column(String(64))
+    last_error_at: Mapped[datetime | None]
+
+
+class PushVapid(Base):
+    """This install's push signing key (a single row)."""
+
+    __tablename__ = "push_vapid"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, default=1)
+    private_key: Mapped[dict[str, Any]] = mapped_column(EncryptedJSON)
+    public_key: Mapped[str] = mapped_column(String(128))
+    created_at: Mapped[datetime] = mapped_column(default=utcnow)
+
+
+class NotifyIncident(Base):
+    """A problem the notifier has settled on, until it clears."""
+
+    __tablename__ = "notify_incidents"
+
+    key: Mapped[str] = mapped_column(String(32), primary_key=True)
+    owner: Mapped[str] = mapped_column(String(48), index=True)  # local:<id> or peer:<id>
+    source_key: Mapped[str | None] = mapped_column(String(80))  # None: the peer link itself
+    notified: Mapped[bool] = mapped_column(Boolean)
+    title: Mapped[str] = mapped_column(String(255))
+    url: Mapped[str] = mapped_column(String(512))
+    tag: Mapped[str | None] = mapped_column(String(32))
+    first_seen_at: Mapped[datetime]
+    notified_at: Mapped[datetime | None]
+    last_seen_at: Mapped[datetime]
