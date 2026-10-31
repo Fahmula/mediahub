@@ -49,6 +49,14 @@ do it in both directions.
   the servers you link to.
 - Revoke a token at any time; that server loses access immediately.
 
+### Play history
+
+**Activity → Play history** lists each play MediaHub could match to InfiniDysk over the last 30
+days, opening on the ones with problems, with InfiniDysk's own messages. It needs InfiniDysk's
+backend URL and internal key (the live feed). It shows only what InfiniDysk logged, so a stutter
+it didn't log looks clean, and each install records its own plays: history isn't sent to linked
+servers.
+
 ## Configuration
 
 Everything except the environment below lives in the web UI and the `/config` volume.

@@ -94,6 +94,7 @@ class DashboardView:
     stream_reads: dict[tuple[str, str], ActiveRead] = field(default_factory=dict)
     # (session source key, session id) -> next-episode check outcome (local sessions only)
     next_checks: dict[tuple[str, str], NextEpisodeCheck] = field(default_factory=dict)
+    recent_play_problems: int = 0  # this server's plays only
 
     @property
     def multi_server(self) -> bool:
@@ -218,6 +219,7 @@ def build_view(store: SnapshotStore, scope: str) -> DashboardView:
     servers: list[tuple[ServerCard, ServerSnapshot | None]] = []
 
     if scope in (SCOPE_ALL, SCOPE_LOCAL):
+        view.recent_play_problems = store.recent_play_problems
         local = store.local_server()
         servers.append(
             (

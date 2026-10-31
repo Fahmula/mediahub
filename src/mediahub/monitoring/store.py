@@ -44,6 +44,8 @@ class SnapshotStore:
     _instance_fps: dict[str, set[str]] = field(default_factory=dict)
     # (emby instance id, session id, item id) -> next-episode check outcome (local only)
     _next_checks: dict[tuple[str, str, str], NextEpisodeCheck] = field(default_factory=dict)
+    # Plays with problems in the last 24 h, so the dashboard needn't query the database.
+    recent_play_problems: int = 0
 
     # ----- local instances -------------------------------------------------------------
     def put_local(self, snapshot: ServiceSnapshot, order: int = 0) -> None:

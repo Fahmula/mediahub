@@ -356,3 +356,47 @@ Transcode{% if t.video_direct %} (audio only){% elif t.audio_direct %} (video on
   {{ stream_health_icon(r) }}
 </div>
 {%- endmacro %}
+
+{# ---------- Play history ---------- #}
+{% macro play_time(at) -%}
+<time datetime="{{ at.isoformat() }}" data-local>{{ at|reltime }}</time>
+{%- endmacro %}
+
+{% macro play_summary(r) -%}
+{%- set p = r.play -%}
+<span class="mt-0.5 shrink-0 text-{{ r.health.tone }}">{{ icon(r.health.icon, "size-4.5") }}</span>
+<div class="min-w-0 flex-1">
+  <p class="truncate text-sm font-medium">{{ p.title }}{% if p.year %} <span class="muted">({{ p.year }})</span>{% endif %}{% if p.subtitle %} <span class="font-normal muted">· {{ p.subtitle }}</span>{% endif %}</p>
+  <p class="truncate text-xs muted">{{ p.user or "Unknown user" }} · {{ p.device or "Unknown device" }} · {{ play_time(p.started_at) }}</p>
+  <p class="truncate text-xs">
+    <span class="text-{{ r.health.tone }}">{{ r.health.label }}</span>
+    <span class="muted">
+      {%- if p.problem_count %} · {{ p.problem_count }} report{{ "s" if p.problem_count != 1 }}{% endif %}
+      {%- if p.ended_at is none %} · In progress{% elif r.stopped_at_pct is not none %} · stopped at {{ r.stopped_at_pct|pct }}{% endif %}
+    </span>
+  </p>
+</div>
+{%- endmacro %}
+
+{% macro play_row(r) -%}
+{%- set p = r.play -%}
+{% if r.problems or p.incomplete %}
+<details class="group">
+  <summary class="flex cursor-pointer list-none items-start gap-3 rounded-field px-2 py-2.5 transition-colors hover:bg-base-300/40">
+    {{ play_summary(r) }}
+    <span class="mt-1 shrink-0 muted transition-transform group-open:rotate-90">{{ icon("chevron-right", "size-4") }}</span>
+  </summary>
+  <div class="space-y-1.5 px-2 pb-3 text-xs">
+    {% for problem in r.problems %}
+    <p class="wrap-anywhere"><span class="font-medium {{ 'text-error' if problem.outcome.value == 'failed' else 'text-warning' }}">{{ problem.outcome.label }}</span> <span class="muted">{{ play_time(problem.at) }}</span> · {{ problem.message }}</p>
+    {% endfor %}
+    {% if p.problem_count > r.problems|length %}<p class="muted">{{ p.problem_count - r.problems|length }} more not kept: only the first and latest are stored.</p>{% endif %}
+    {% if p.incomplete %}<p class="muted">MediaHub lost track of Emby or InfiniDysk during this play, so some problems may be missing.</p>{% endif %}
+    {% if p.file_name %}<p class="wrap-anywhere muted">File: {{ p.file_name }}</p>{% endif %}
+  </div>
+</details>
+{% else %}
+<div class="flex items-start gap-3 px-2 py-2.5">{{ play_summary(r) }}</div>
+{% endif %}
+{%- endmacro %}
+

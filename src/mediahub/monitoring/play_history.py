@@ -51,6 +51,8 @@ FEED_LOST_S = 120.0
 RESTART_GAP_S = 300.0
 HEARTBEAT_S = 60.0
 PRUNE_EVERY_S = 3600.0
+RECOUNT_EVERY_S = 300.0  # plays also age out of the dashboard's last 24 h with nothing written
+RECENT = timedelta(hours=24)
 RETENTION = timedelta(days=30)
 CLOCK_SLACK = timedelta(seconds=60)
 # A long play can report hundreds of problems: keep how it started and how it ended.
@@ -313,6 +315,7 @@ class PlayHistoryTarget(PollTarget):
         self.tracker = PlayTracker()
         self._restored = False
         self._next_prune = float("-inf")
+        self._next_recount = float("-inf")
 
     def interval(self, active: bool) -> float:
         return TICK_S
@@ -324,10 +327,14 @@ class PlayHistoryTarget(PollTarget):
             self.tracker.restore(rows, now)
             self._restored = True
         self.tracker.update(self._store.local_snapshots(), self._instances(), now)
+        wrote = bool(self.tracker.pending(now))
         ok = await self._flush(now)
         if self._clock() >= self._next_prune:
             self._next_prune = self._clock() + PRUNE_EVERY_S
             await asyncio.to_thread(self._prune, now)
+        if wrote or self._clock() >= self._next_recount:
+            self._next_recount = self._clock() + RECOUNT_EVERY_S
+            self._store.recent_play_problems = await asyncio.to_thread(self._recount, now)
         return ok
 
     def _read_open(self) -> list[PlayRecord]:
@@ -337,6 +344,10 @@ class PlayHistoryTarget(PollTarget):
     def _prune(self, now: datetime) -> None:
         with session_scope(self._sessions) as db:
             repository.prune(db, now - RETENTION)
+
+    def _recount(self, now: datetime) -> int:
+        with session_scope(self._sessions) as db:
+            return repository.recent_problem_count(db, now - RECENT)
 
     def _write(self, rows: list[dict[str, Any]]) -> None:
         with session_scope(self._sessions) as db:

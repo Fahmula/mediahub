@@ -111,6 +111,13 @@
     }
   });
 
+  // The server doesn't know the viewer's time zone.
+  htmx.onLoad((root) => {
+    root.querySelectorAll?.("time[data-local]").forEach((el) => {
+      el.textContent = new Date(el.dateTime).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+    });
+  });
+
   let offline = false;
   document.addEventListener("htmx:sendError", () => {
     if (!offline) toast("Can't reach MediaHub. Retrying…", "warning");

@@ -8,5 +8,8 @@
 {% elif not view.snapshots_of(ServiceType.EMBY) %}
   <p class="px-1 pb-1 text-sm muted">Add an Emby instance under Servers to see what's playing.</p>
 {% else %}
-  <p class="px-1 pb-1 text-sm muted">Nothing playing right now.</p>
+  <p class="px-1 pb-1 text-sm muted">Nothing playing right now. <a href="/activity?tab=plays&amp;show=all" class="font-medium text-primary hover:underline">Play history</a></p>
+{% endif %}
+{% if view.recent_play_problems %}
+<a href="/activity?tab=plays" class="flex items-center gap-1.5 px-1 py-3.5 text-xs font-medium text-warning hover:underline">{{ icon("triangle-alert", "size-3.5") }} {{ view.recent_play_problems }} play{{ "s" if view.recent_play_problems != 1 }} with problems in the last 24 h</a>
 {% endif %}

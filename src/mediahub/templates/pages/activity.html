@@ -1,13 +1,18 @@
 {% extends "layouts/app.html" %}
 {% import "components/ui.html" as ui %}
 {% block content %}
-{% set tabs = [("playback", "Now playing", "play", fv.sessions|length), ("downloads", "Downloads", "arrow-down-to-line", fv.downloads|length)] %}
+{% set tabs = [("playback", "Now playing", "play", fv.sessions|length), ("plays", "Play history", "history", none), ("downloads", "Downloads", "arrow-down-to-line", fv.downloads|length)] %}
 <div role="tablist" class="tabs tabs-box mb-4 w-full flex-nowrap bg-base-100 sm:w-fit">
   {% for key, label, icon_name, count in tabs %}
-  <a role="tab" href="/activity?tab={{ key }}" class="tab flex-1 gap-1.5 whitespace-nowrap px-2 sm:flex-none sm:px-4 {% if tab == key %}tab-active{% endif %}" {% if tab == key %}aria-selected="true"{% endif %}>
-    <span class="hidden sm:inline">{{ icon(icon_name, "size-4") }}</span> {{ label }}{% if count %} <span class="badge badge-xs tabular-nums {{ 'badge-primary' if tab == key else 'badge-ghost' }}">{{ count }}</span>{% endif %}
+  <a role="tab" href="/activity?tab={{ key }}" class="tab flex-1 flex-nowrap gap-1.5 whitespace-nowrap px-2 sm:flex-none sm:px-4 {% if tab == key %}tab-active bg-primary/15 text-primary{% endif %}" {% if tab == key %}aria-selected="true"{% endif %}>
+    <span class="hidden sm:inline">{{ icon(icon_name, "size-4") }}</span> {{ label }}{% if count %} <span class="badge badge-xs hidden tabular-nums sm:inline-flex {{ 'badge-primary' if tab == key else 'badge-ghost' }}">{{ count }}</span>{% endif %}
   </a>
   {% endfor %}
 </div>
+{% if tab == "plays" %}
+{# Not polled: a refresh would close open rows and drop the pages loaded so far. #}
+<section id="sec-activity">{% include "partials/activity_list.html" %}</section>
+{% else %}
 {% call ui.poll_section("sec-activity", "/partials/activity/" ~ tab ~ "?server=" ~ scope, 5) %}{% include "partials/activity_list.html" %}{% endcall %}
+{% endif %}
 {% endblock %}

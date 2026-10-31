@@ -5,6 +5,8 @@
   {% if fv.sessions %}
   <div class="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">{% for s in fv.sessions %}{{ items.session_card(s, multi, view.read_for(s), view.next_check_for(s)) }}{% endfor %}</div>
   {% else %}<div class="panel">{{ ui.empty_state("play", "Nothing playing", "Active Emby sessions will appear here.") }}</div>{% endif %}
+{% elif tab == "plays" %}
+  {% include "partials/play_history.html" %}
 {% elif tab == "downloads" %}
   {% if fv.downloads %}
   <div class="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">{% for d in fv.downloads %}{{ items.download_card(d, multi) }}{% endfor %}</div>

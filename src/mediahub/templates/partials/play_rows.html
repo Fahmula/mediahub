@@ -1,0 +1,7 @@
+{% import "components/items.html" as items %}
+{% for r in plays %}{{ items.play_row(r) }}{% endfor %}
+{% if next_cursor %}
+<div class="p-2">
+  <button type="button" class="btn btn-ghost btn-sm w-full" hx-get="/partials/plays?show={{ show }}&amp;before={{ next_cursor|urlencode }}" hx-target="closest div" hx-swap="outerHTML">Load more</button>
+</div>
+{% endif %}
