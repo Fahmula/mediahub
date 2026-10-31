@@ -6,5 +6,5 @@
     {% for st in view.streams %}<div class="py-3 first:pt-0 last:pb-0 lg:py-0 2xl:py-3 2xl:first:pt-0 2xl:last:pb-0">{{ items.stream_stats_panel(st, view.multi_server) }}</div>{% endfor %}
   </div>
 {% else %}
-  {{ ui.empty_state("disc-3", "No InfiniDysk instance", "Add InfiniDysk in Settings to see streaming and cache health.") }}
+  {{ ui.empty_state("disc-3", "No InfiniDysk instance", "Add InfiniDysk under Servers to see streaming and cache health.") }}
 {% endif %}

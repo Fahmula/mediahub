@@ -3,8 +3,8 @@
 {% set multi = view.multi_server %}
 {% if not fv.instances %}
   <div class="panel">
-    {{ ui.empty_state(ui.SERVICE_ICONS[service_type.value], "No " ~ service_type.label ~ " instances", "Add one in Settings → Services to start monitoring it.") }}
-    <div class="flex justify-center pb-6"><a href="/settings/services/new?type={{ service_type.value }}" class="btn btn-primary btn-sm">{{ icon("plus", "size-4") }} Add {{ service_type.label }}</a></div>
+    {{ ui.empty_state(ui.SERVICE_ICONS[service_type.value], "No " ~ service_type.label ~ " instances", "Add one under Servers to start monitoring it.") }}
+    <div class="flex justify-center pb-6"><a href="/servers/services/new?type={{ service_type.value }}" class="btn btn-primary btn-sm">{{ icon("plus", "size-4") }} Add {{ service_type.label }}</a></div>
   </div>
 {% else %}
   {# Instance health strip #}

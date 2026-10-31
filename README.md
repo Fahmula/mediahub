@@ -19,7 +19,7 @@ Redis, no Node.js at runtime.
 docker compose up -d --build
 ```
 
-Open `http://<host>:8080`, create the admin account, then **Settings → Add service**.
+Open `http://<host>:8080`, create the admin account, then **Servers → Add service**.
 
 Want to see the UI first? Set `MEDIAHUB_DEMO_MODE=true` to show generated data, including a
 simulated second server.
@@ -38,7 +38,7 @@ data. Over plain `http://` it works as a normal website.
 ### Link two installs
 
 Each MediaHub can show another one's activity, read-only. On the server to be read, open
-**Settings → Connected servers → Access tokens**, create a token (shown once) and copy it. On
+**Servers → Access tokens**, create a token (shown once) and copy it. On
 the other server, **Link a server** with the first one's URL and that token. To see each other,
 do it in both directions.
 

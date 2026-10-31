@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import select
@@ -14,6 +15,16 @@ from mediahub.integrations.base import InstanceConfig
 from mediahub.models.common import ServiceType
 
 
+@dataclass(frozen=True)
+class ManagedInstance:
+    """What the Servers page needs of a row: no secrets, so nothing is decrypted to poll it."""
+
+    id: str
+    name: str
+    service_type: ServiceType
+    enabled: bool
+
+
 def list_instances(db: Session) -> list[ServiceInstance]:
     return list(
         db.scalars(
@@ -22,6 +33,18 @@ def list_instances(db: Session) -> list[ServiceInstance]:
             )
         )
     )
+
+
+def list_managed(db: Session) -> list[ManagedInstance]:
+    rows = db.execute(
+        select(
+            ServiceInstance.id,
+            ServiceInstance.name,
+            ServiceInstance.service_type,
+            ServiceInstance.enabled,
+        ).order_by(ServiceInstance.service_type, ServiceInstance.sort_order, ServiceInstance.name)
+    )
+    return [ManagedInstance(r.id, r.name, ServiceType(r.service_type), r.enabled) for r in rows]
 
 
 def get_instance(db: Session, instance_id: str) -> ServiceInstance | None:

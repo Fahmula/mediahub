@@ -138,7 +138,7 @@ class MonitoringService:
                     source=source,
                     status=ServiceStatus.ERROR,
                     error="Stored credentials can't be decrypted (was the secret key changed?). "
-                    "Re-enter them in Settings → Services.",
+                    "Re-enter them under Servers (Edit).",
                 )
             self.store.put_local(snapshot, order=item.order)
             return
@@ -213,7 +213,7 @@ class MonitoringService:
             state.status = ServiceStatus.ERROR
             state.error = (
                 "The stored access token can't be decrypted (was the secret key changed?). "
-                "Enter it again in Settings → Connected servers."
+                "Enter it again under Servers (Edit)."
             )
             return
         await self.poller.add(

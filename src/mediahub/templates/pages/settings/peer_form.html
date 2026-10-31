@@ -5,7 +5,7 @@
 {%- endmacro %}
 
 {% block content %}
-<form method="post" action="{{ '/settings/peers/' ~ peer.id if peer else '/settings/peers/new' }}" class="mx-auto max-w-2xl space-y-4" autocomplete="off">
+<form method="post" action="{{ '/servers/peers/' ~ peer.id if peer else '/servers/peers/new' }}" class="mx-auto max-w-2xl space-y-4" autocomplete="off">
   <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
   {% if peer %}<input type="hidden" name="peer_id" value="{{ peer.id }}">{% endif %}
 
@@ -42,7 +42,7 @@
         <input class="input w-full font-mono text-sm {{ 'input-error' if form.errors.token }}" type="password" name="token" autocomplete="new-password" spellcheck="false"
                placeholder="{{ '•••••••• saved — leave blank to keep' if token_stored else 'mhp_…' }}" {% if not token_stored %}required{% endif %}>
       </label>
-      <span class="block text-xs muted">Create it on the other server: Settings → Connected servers → Access tokens.</span>
+      <span class="block text-xs muted">Create it on the other server: Servers → Access tokens.</span>
       {{ field_error("token") }}
     </div>
 
@@ -53,11 +53,11 @@
   <div id="test-result" aria-live="polite"></div>
 
   <div class="flex flex-wrap items-center gap-2">
-    <button type="button" class="btn btn-outline btn-sm" hx-post="/settings/peers/test" hx-include="closest form" hx-target="#test-result" hx-indicator="#test-spinner" hx-disabled-elt="this">
+    <button type="button" class="btn btn-outline btn-sm" hx-post="/servers/peers/test" hx-include="closest form" hx-target="#test-result" hx-indicator="#test-spinner" hx-disabled-elt="this">
       <span id="test-spinner" class="loading loading-spinner loading-xs htmx-indicator"></span>{{ icon("plug", "size-4") }} Test connection
     </button>
     <span class="flex-1"></span>
-    <a href="/settings#peers" class="btn btn-ghost btn-sm">Cancel</a>
+    <a href="/servers" class="btn btn-ghost btn-sm">Cancel</a>
     <button type="submit" class="btn btn-primary btn-sm">{{ "Save changes" if peer else "Link server" }}</button>
   </div>
 </form>

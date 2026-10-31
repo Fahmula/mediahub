@@ -6,7 +6,7 @@
 {% elif view.sessions %}
   <div class="space-y-0.5">{% for s in view.sessions[:6] %}{{ items.session_row(s, view.multi_server, view.read_for(s)) }}{% endfor %}</div>
 {% elif not view.snapshots_of(ServiceType.EMBY) %}
-  {{ ui.empty_state("play", "No media server", "Add an Emby instance in Settings to see what's playing.") }}
+  {{ ui.empty_state("play", "No media server", "Add an Emby instance under Servers to see what's playing.") }}
 {% else %}
   {{ ui.empty_state("play", "Nothing playing", "Active Emby sessions will appear here.") }}
 {% endif %}

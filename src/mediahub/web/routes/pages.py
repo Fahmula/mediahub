@@ -22,7 +22,7 @@ from mediahub.models.playback import PlaybackSession
 from mediahub.models.snapshot import ServiceSnapshot
 from mediahub.security.csrf import verify_csrf
 from mediahub.web.deps import require_auth
-from mediahub.web.scope import remember_scope, scope_context
+from mediahub.web.scope import current_scope, remember_scope, scope_context
 from mediahub.web.templating import render
 
 router = APIRouter(dependencies=[Depends(require_auth), Depends(verify_csrf)])
@@ -68,18 +68,11 @@ async def dashboard_partial(
     return render(request, f"partials/dashboard/{section}.html", base)
 
 
-@router.get("/servers", response_class=HTMLResponse)
-async def servers(request: Request, ctx: AppContext = Depends(get_context)) -> HTMLResponse:
-    ctx.monitor.demand.touch()
-    view = build_view(ctx.monitor.store, "all")
-    return render(request, "pages/servers.html", {"view": view, "page_title": "Servers"})
-
-
-@router.get("/partials/servers", response_class=HTMLResponse)
-async def servers_partial(request: Request, ctx: AppContext = Depends(get_context)) -> HTMLResponse:
-    ctx.monitor.demand.touch()
-    view = build_view(ctx.monitor.store, "all")
-    return render(request, "partials/servers.html", {"view": view})
+@router.get("/partials/nav", response_class=HTMLResponse)
+async def nav_partial(request: Request, ctx: AppContext = Depends(get_context)) -> HTMLResponse:
+    """The Needs Attention count in the nav. On every page, so it doesn't count as demand."""
+    view = build_view(ctx.monitor.store, current_scope(request, ctx))
+    return render(request, "partials/nav_counts.html", {"attention_count": len(view.issues)})
 
 
 @router.get("/attention", response_class=HTMLResponse)
@@ -202,7 +195,7 @@ def _service_page_handler(service_type: ServiceType):  # type: ignore[no-untyped
         response = render(
             request,
             "pages/service.html",
-            {**base, "page_title": service_type.label, "back_href": "/"},
+            {**base, "page_title": service_type.label, "back_href": "/servers"},
         )
         remember_scope(request, response, str(base["scope"]))
         layout = str(base["layout"])

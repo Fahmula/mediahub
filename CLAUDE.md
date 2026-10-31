@@ -35,7 +35,7 @@ git-ignored. Classes built from variables (e.g. `text-{{ tone }}`) must be safel
 - `aggregation/dashboard.py` — builds view models for scope `all` / `local` / a peer id.
   Templates only see these view models and normalized models.
 - `web/routes/` — page and `/partials/...` handlers read only the store (async, no upstream
-  calls). Settings handlers do DB work via `run_in_threadpool`.
+  calls). Servers and Settings handlers do DB work via `run_in_threadpool`.
 - `db/` — models, `EncryptedJSON` (Fernet) for secrets, `UTCDateTime`; migrations in
   `migrations/versions/` (keep migrations free of app-type imports: use `sa.Text`/`sa.DateTime`).
 - `peers/redact.py` — strips IPs/paths before data leaves the server (Phase 5 federation).

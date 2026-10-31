@@ -1,6 +1,26 @@
 {% import "components/ui.html" as ui %}
 {% import "components/items.html" as items %}
-<div class="space-y-4">
+
+{% macro menu(label, edit_href, base, enabled, remove_label, confirm) -%}
+<div class="dropdown dropdown-end shrink-0">
+  <div role="button" tabindex="0" class="btn btn-ghost btn-sm btn-circle" aria-label="Actions for {{ label }}">{{ icon("menu", "size-4") }}</div>
+  <ul tabindex="0" class="menu dropdown-content z-40 mt-1 w-44 rounded-box border border-base-300/60 bg-base-100 p-1.5 shadow-lg">
+    <li><a href="{{ edit_href }}">{{ icon("pencil", "size-4") }} Edit</a></li>
+    <li><button type="button" hx-post="{{ base }}/toggle">{{ icon("pause" if enabled else "play", "size-4") }} {{ "Disable" if enabled else "Enable" }}</button></li>
+    <li><button type="button" class="text-error" hx-post="{{ base }}/delete" hx-confirm="{{ confirm }}">{{ icon("trash-2", "size-4") }} {{ remove_label }}</button></li>
+  </ul>
+</div>
+{%- endmacro %}
+
+{% macro service_menu(inst) -%}
+{{ menu(inst.name, "/servers/services/" ~ inst.id, "/servers/services/" ~ inst.id, inst.enabled, "Remove", "Remove " ~ inst.name ~ "? Its stored credentials are deleted.") }}
+{%- endmacro %}
+
+{% macro peer_menu(peer) -%}
+{{ menu(peer.name, "/servers/peers/" ~ peer.id, "/servers/peers/" ~ peer.id, peer.enabled, "Unlink", "Unlink " ~ peer.name ~ "? Its stored access token is deleted.") }}
+{%- endmacro %}
+
+<div class="space-y-4 lg:space-y-6">
   {% for card in view.servers %}
   <section id="server-{{ card.key }}" class="panel scroll-mt-24 p-3 sm:p-4">
     <div class="mb-3 flex items-center gap-3">
@@ -13,20 +33,42 @@
           {% if not card.is_local %}<span>· last sync {{ card.last_sync|reltime }}</span>{% endif %}
         </p>
       </div>
-      {% if card.is_local %}<a href="/settings#services" class="btn btn-ghost btn-sm">{{ icon("settings", "size-4") }}<span class="hidden sm:inline">Manage</span></a>{% endif %}
+      {% if card.is_local %}
+      <a href="/servers/services/new" class="btn btn-primary btn-sm">{{ icon("plus", "size-4") }}<span class="hidden sm:inline">Add service</span><span class="sm:hidden">Add</span></a>
+      {% elif card.key in peers %}
+      {{ peer_menu(peers[card.key]) }}
+      {% endif %}
     </div>
     {% if card.error %}<div role="alert" class="alert alert-error alert-soft mb-3 text-sm">{{ icon("wifi-off", "size-4") }}<span>{{ card.error }}</span></div>{% endif %}
     {% if card.insecure_transport %}<div role="alert" class="alert alert-warning alert-soft mb-3 text-sm">{{ icon("triangle-alert", "size-4") }}<span>This peer is reached over plain HTTP outside Tailscale or a private network. Its access token could be intercepted.</span></div>{% endif %}
-    {% if card.services %}
+    {% set unpolled = unpolled_instances if card.is_local else [] %}
+    {% if card.services or unpolled %}
     <div class="divide-y divide-base-300/50">
       {% for svc in card.services %}
-      <div class="flex items-center gap-3 px-1 py-2.5">
-        {{ ui.service_tile(svc.source.slug, "size-9", "size-4.5") }}
-        <div class="min-w-0 flex-1">
-          <p class="flex items-center gap-1.5 truncate text-sm font-medium">{{ svc.source.instance_name }} <span class="font-normal muted">· {{ svc.source.service_type.label if svc.source.service_type }}</span>{% if svc.stale and svc.status.value not in ("disabled", "pending") %}<span class="text-warning" title="Data is stale">{{ icon("clock", "size-3") }}</span>{% endif %}</p>
-          <p class="truncate text-xs {{ 'text-error' if svc.error else 'muted' }}">{{ svc.error or (("v" ~ svc.version) if svc.version else "") }}{% if svc.checked_at %}{{ " · " if svc.error or svc.version }}checked {{ svc.checked_at|reltime }}{% endif %}</p>
+      <div class="flex items-center gap-1">
+        <a href="/{{ svc.source.slug }}?server=all&amp;instance={{ svc.source.instance_id }}" class="flex min-w-0 flex-1 items-center gap-3 rounded-field px-1 py-2.5 transition-colors hover:bg-base-300/40">
+          {{ ui.service_tile(svc.source.slug, "size-9", "size-4.5") }}
+          <div class="min-w-0 flex-1">
+            <p class="flex items-center gap-1.5 truncate text-sm font-medium">{{ svc.source.instance_name }}{% if svc.source.service_type and svc.source.service_type.label != svc.source.instance_name %} <span class="font-normal muted">· {{ svc.source.service_type.label }}</span>{% endif %}{% if svc.stale and svc.status.value not in ("disabled", "pending") %}<span class="text-warning" title="Data is stale">{{ icon("clock", "size-3") }}</span>{% endif %}</p>
+            <p class="flex flex-wrap items-center gap-x-1.5 text-xs muted sm:hidden">{{ ui.status_badge(svc.status) }}<span>· {{ svc.headline }}</span></p>
+            {% if svc.error %}<p class="text-xs text-error">{{ svc.error }}</p>
+            {% elif svc.version or svc.checked_at %}<p class="truncate text-xs muted">{{ ("v" ~ svc.version) if svc.version }}{% if svc.checked_at %}{{ " · " if svc.version }}checked {{ svc.checked_at|reltime }}{% endif %}</p>{% endif %}
+          </div>
+          <div class="hidden shrink-0 flex-col items-end gap-1 sm:flex">{{ ui.status_badge(svc.status) }}<span class="text-xs muted">{{ svc.headline }}</span></div>
+        </a>
+        {% if card.is_local and svc.source.instance_id in instances %}{{ service_menu(instances[svc.source.instance_id]) }}{% endif %}
+      </div>
+      {% endfor %}
+      {% for inst in unpolled %}
+      <div class="flex items-center gap-1">
+        <div class="flex min-w-0 flex-1 items-center gap-3 px-1 py-2.5">
+          {{ ui.service_tile(inst.service_type.value, "size-9", "size-4.5") }}
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-medium">{{ inst.name }}{% if inst.service_type.label != inst.name %} <span class="font-normal muted">· {{ inst.service_type.label }}</span>{% endif %}</p>
+            <p class="text-xs">{{ ui.status_badge("pending" if inst.enabled else "disabled") }}</p>
+          </div>
         </div>
-        <div class="flex shrink-0 flex-col items-end gap-1">{{ ui.status_badge(svc.status) }}<span class="text-xs muted">{{ svc.headline }}</span></div>
+        {{ service_menu(inst) }}
       </div>
       {% endfor %}
     </div>
@@ -35,14 +77,14 @@
     {% endif %}
   </section>
   {% endfor %}
-  <section class="panel p-4">
-    <div class="flex items-start gap-3">
-      <span class="svc-tile svc-peer size-9">{{ icon("network", "size-4.5") }}</span>
-      <div class="min-w-0 flex-1 space-y-1">
-        <h2 class="font-semibold">Connect another MediaHub</h2>
-        <p class="text-sm muted">Link a trusted MediaHub (for example over Tailscale) to see its activity here, read-only. Create an access token on one server and paste it into the other.</p>
-        <a href="/settings#peers" class="btn btn-outline btn-sm mt-2">{{ icon("link-2", "size-4") }} Connected servers</a>
-      </div>
+  {% for peer in unlisted_peers %}
+  <section class="panel flex items-center gap-3 p-3 sm:p-4">
+    <span class="panel-inset flex size-11 shrink-0 items-center justify-center text-base-content/70">{{ icon("server", "size-5") }}</span>
+    <div class="min-w-0 flex-1">
+      <h2 class="flex items-center gap-2 truncate text-lg font-semibold">{{ peer.name }}<span class="badge badge-ghost badge-xs">Peer · read-only</span></h2>
+      <p class="text-xs">{{ ui.status_badge("disabled") }}</p>
     </div>
+    {{ peer_menu(peer) }}
   </section>
+  {% endfor %}
 </div>
