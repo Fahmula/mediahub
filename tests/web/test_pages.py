@@ -62,8 +62,14 @@ def test_dashboard_shows_both_servers_and_issues(demo_client: TestClient) -> Non
 def test_playing_media_comes_first(demo_client: TestClient) -> None:
     html = demo_client.get("/").text
     assert html.index('id="sec-streams"') < html.index('id="sec-attention"')
-    assert html.index('id="sec-attention"') < html.index('id="sec-summary"')
+    assert html.index('id="sec-attention"') < html.index('id="sec-downloads"')
     assert "Now playing" in html
+
+
+def test_servers_summary_comes_last(demo_client: TestClient) -> None:
+    html = demo_client.get("/").text
+    assert html.index('id="sec-downloads"') < html.index('id="sec-summary"')
+    assert html.index('id="sec-infinidysk"') < html.index('id="sec-summary"')
 
 
 def test_row_states_are_text_not_tooltips(demo_client: TestClient) -> None:

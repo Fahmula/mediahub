@@ -9,7 +9,7 @@ Redis, no Node.js at runtime.
 
 ## Features
 
-- **Dashboard:** now playing first, then Needs Attention, your servers, downloads and InfiniDysk.
+- **Dashboard:** now playing first, then Needs Attention, downloads, InfiniDysk and your servers.
   Built for phones, with a bottom nav and live counts.
 - **Emby:** live sessions with posters, progress and transcode details, in a detailed or compact
   layout.
