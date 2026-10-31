@@ -1,13 +1,13 @@
 {% extends "layouts/app.html" %}
 {% import "components/ui.html" as ui %}
 {% block content %}
-{% set tabs = [("playback", "Playback", "play", fv.sessions|length), ("downloads", "Downloads", "arrow-down-to-line", fv.downloads|length), ("history", "History", "history", none), ("streams", "Streams", "radio-tower", fv.reads|length)] %}
-<div role="tablist" class="tabs tabs-box mb-4 w-full flex-nowrap overflow-x-auto bg-base-100 sm:w-auto">
+{% set tabs = [("playback", "Now playing", "play", fv.sessions|length), ("downloads", "Downloads", "arrow-down-to-line", fv.downloads|length)] %}
+<div role="tablist" class="tabs tabs-box mb-4 w-full flex-nowrap bg-base-100 sm:w-fit">
   {% for key, label, icon_name, count in tabs %}
-  <a role="tab" href="/activity?tab={{ key }}" class="tab gap-1.5 whitespace-nowrap {% if tab == key %}tab-active{% endif %}" {% if tab == key %}aria-selected="true"{% endif %}>
-    {{ icon(icon_name, "size-4") }} {{ label }}{% if count %} <span class="badge badge-xs tabular-nums {{ 'badge-primary' if tab == key else 'badge-ghost' }}">{{ count }}</span>{% endif %}
+  <a role="tab" href="/activity?tab={{ key }}" class="tab flex-1 gap-1.5 whitespace-nowrap px-2 sm:flex-none sm:px-4 {% if tab == key %}tab-active{% endif %}" {% if tab == key %}aria-selected="true"{% endif %}>
+    <span class="hidden sm:inline">{{ icon(icon_name, "size-4") }}</span> {{ label }}{% if count %} <span class="badge badge-xs tabular-nums {{ 'badge-primary' if tab == key else 'badge-ghost' }}">{{ count }}</span>{% endif %}
   </a>
   {% endfor %}
 </div>
-{% call ui.poll_section("sec-activity", "/partials/activity/" ~ tab ~ "?server=" ~ scope, 5 if tab != "history" else 30) %}{% include "partials/activity_list.html" %}{% endcall %}
+{% call ui.poll_section("sec-activity", "/partials/activity/" ~ tab ~ "?server=" ~ scope, 5) %}{% include "partials/activity_list.html" %}{% endcall %}
 {% endblock %}

@@ -90,6 +90,6 @@
 <div class="flex items-center gap-2 px-1 pb-2">
   <h2 class="section-title">{{ title }}</h2>
   {% if count is not none %}<span class="badge badge-ghost badge-sm tabular-nums">{{ count }}</span>{% endif %}
-  {% if href %}<a href="{{ href }}" class="ml-auto text-xs font-medium text-primary hover:underline">{{ link_label }}</a>{% endif %}
+  {% if href %}<a href="{{ href }}" class="-my-3.5 ml-auto py-3.5 pl-3 text-xs font-medium text-primary hover:underline">{{ link_label }}</a>{% endif %}
 </div>
 {%- endmacro %}

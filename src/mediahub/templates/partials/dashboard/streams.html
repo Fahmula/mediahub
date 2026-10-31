@@ -1,12 +1,12 @@
 {% import "components/items.html" as items %}
 {% import "components/ui.html" as ui %}
-{{ ui.section_header("Current streams", view.sessions|length, "/activity?tab=playback") }}
+{{ ui.section_header("Now playing", view.sessions|length, "/activity?tab=playback") }}
 {% if view.pending %}
   {{ ui.skeleton_rows(2) }}
 {% elif view.sessions %}
-  <div class="space-y-0.5">{% for s in view.sessions[:6] %}{{ items.session_row(s, view.multi_server, view.read_for(s)) }}{% endfor %}</div>
+  <div class="grid grid-cols-1 gap-x-4 gap-y-0.5 lg:grid-cols-2 2xl:grid-cols-3">{% for s in view.sessions[:6] %}{{ items.session_row(s, view.multi_server, view.read_for(s)) }}{% endfor %}</div>
 {% elif not view.snapshots_of(ServiceType.EMBY) %}
-  {{ ui.empty_state("play", "No media server", "Add an Emby instance under Servers to see what's playing.") }}
+  <p class="px-1 pb-1 text-sm muted">Add an Emby instance under Servers to see what's playing.</p>
 {% else %}
-  {{ ui.empty_state("play", "Nothing playing", "Active Emby sessions will appear here.") }}
+  <p class="px-1 pb-1 text-sm muted">Nothing playing right now.</p>
 {% endif %}

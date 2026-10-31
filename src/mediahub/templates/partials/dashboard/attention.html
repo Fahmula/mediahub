@@ -6,10 +6,10 @@
     <span class="text-warning">{{ icon("triangle-alert", "size-4") }}</span>
     <h2 class="section-title">Needs attention</h2>
     <span class="badge badge-warning badge-soft badge-sm tabular-nums">{{ view.issues|length }}</span>
-    {% if view.issues|length > 3 %}<a href="/attention" class="ml-auto text-xs font-medium text-primary hover:underline">View all</a>{% endif %}
+    <a href="/attention" class="-my-3.5 ml-auto py-3.5 pl-3 text-xs font-medium text-primary hover:underline">View all</a>
   </div>
   <div class="grid grid-cols-1 gap-x-4 lg:grid-cols-3">
-    {% for issue in view.issues[:3] %}{{ items.issue_row(issue, view.multi_server) }}{% endfor %}
+    {% for issue in view.issues[:3] %}<div class="{{ 'hidden lg:block' if not loop.first }}">{{ items.issue_row(issue, view.multi_server) }}</div>{% endfor %}
   </div>
 </div>
 {% endif %}

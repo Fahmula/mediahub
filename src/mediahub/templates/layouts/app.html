@@ -42,18 +42,18 @@
   {# ---------- Main column ---------- #}
   <div class="flex min-h-dvh min-w-0 flex-col">
     <header class="sticky top-0 z-30 border-b border-base-300/60 bg-base-200/85 pt-[env(safe-area-inset-top)] backdrop-blur">
-      <div class="flex h-14 items-center gap-2 px-4 lg:h-16 lg:px-8">
+      <div class="flex h-14 items-center gap-2 pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] lg:h-16 lg:px-8">
         {% if back_href %}
-        <a href="{{ back_href }}" class="btn btn-ghost btn-sm btn-circle -ml-2 lg:hidden" aria-label="Back">{{ icon("chevron-left", "size-5") }}</a>
+        <a href="{{ back_href }}" data-back class="btn btn-ghost btn-sm btn-circle -ml-2 lg:hidden" aria-label="Back">{{ icon("chevron-left", "size-5") }}</a>
         {% else %}
-        <a href="/" class="lg:hidden" aria-label="Dashboard">{{ ui.logo("size-6", "top") }}</a>
+        <a href="/" class="-ml-2.5 flex size-11 shrink-0 items-center justify-center lg:hidden" aria-label="Dashboard">{{ ui.logo("size-6", "top") }}</a>
         {% endif %}
-        <h1 class="min-w-0 truncate text-lg font-semibold lg:text-2xl">{{ page_title }}</h1>
+        <h1 class="min-w-0 truncate text-base font-semibold lg:text-2xl">{{ page_title }}</h1>
         <div class="ml-auto flex items-center gap-1.5">
           {% if server_options and server_options|length > 1 %}
           <label class="sr-only" for="server-select">Server</label>
-          <select id="server-select" name="server" class="select select-sm w-36 sm:w-44"
-                  hx-get="{{ current_path }}" hx-trigger="change" hx-target="#main" hx-select="#main" hx-swap="outerHTML" hx-push-url="true">
+          <select id="server-select" name="server" class="select select-sm w-32 sm:w-44"
+                  hx-get="{{ current_url }}" hx-trigger="change" hx-target="#main" hx-select="#main" hx-swap="outerHTML" hx-push-url="true">
             <option value="all" {% if scope == "all" %}selected{% endif %}>All servers</option>
             {% for s in server_options %}
             <option value="{{ s.key }}" {% if scope == s.key %}selected{% endif %}>{{ s.name }}{% if s.is_local %} (this){% endif %}</option>
@@ -84,7 +84,7 @@
       <div id="live-paused-banner" hidden class="bg-warning/15 px-4 py-1 text-center text-xs text-warning lg:px-8">Live updates paused</div>
     </header>
 
-    <main id="main" class="mx-auto w-full max-w-[96rem] flex-1 px-4 pb-28 pt-4 lg:px-8 lg:pb-10 lg:pt-6">
+    <main id="main" class="mx-auto w-full max-w-[96rem] flex-1 pb-[calc(7rem+env(safe-area-inset-bottom))] pl-[max(1rem,env(safe-area-inset-left))] pr-[max(1rem,env(safe-area-inset-right))] pt-4 lg:px-8 lg:pb-10 lg:pt-6">
       {% block content %}{% endblock %}
     </main>
   </div>

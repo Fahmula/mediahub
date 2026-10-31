@@ -9,12 +9,10 @@
   {% if fv.downloads %}
   <div class="grid grid-cols-1 gap-3 md:grid-cols-2 2xl:grid-cols-3">{% for d in fv.downloads %}{{ items.download_card(d, multi) }}{% endfor %}</div>
   {% else %}<div class="panel">{{ ui.empty_state("arrow-down-to-line", "Queue is empty", "Sonarr and Radarr queue items will appear here.") }}</div>{% endif %}
-{% elif tab == "history" %}
   {% if fv.history %}
-  <div class="panel divide-y divide-base-300/50 p-2">{% for e in fv.history %}{{ items.history_row(e, multi) }}{% endfor %}</div>
-  {% else %}<div class="panel">{{ ui.empty_state("history", "No recent activity", "Grabs, imports and failures from Sonarr and Radarr will appear here.") }}</div>{% endif %}
-{% elif tab == "streams" %}
-  {% if fv.reads %}
-  <div class="panel divide-y divide-base-300/50 p-2">{% for r, snap in fv.reads %}{{ items.active_read_row(r, multi) }}{% endfor %}</div>
-  {% else %}<div class="panel">{{ ui.empty_state("radio-tower", "No active reads", "Files InfiniDysk is currently streaming will appear here.") }}</div>{% endif %}
+  <div class="mt-5">
+    {{ ui.section_header("Recent grabs and imports", fv.history|length) }}
+    <div class="panel divide-y divide-base-300/50 p-2">{% for e in fv.history %}{{ items.history_row(e, multi) }}{% endfor %}</div>
+  </div>
+  {% endif %}
 {% endif %}

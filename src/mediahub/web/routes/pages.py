@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
-from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
@@ -28,7 +27,9 @@ from mediahub.web.templating import render
 router = APIRouter(dependencies=[Depends(require_auth), Depends(verify_csrf)])
 
 DASHBOARD_SECTIONS = frozenset({"attention", "summary", "streams", "downloads", "infinidysk"})
-ActivityTab = Literal["playback", "downloads", "history", "streams"]
+ACTIVITY_TABS = frozenset({"playback", "downloads"})
+# Tabs that were folded into others; old links and open pages still ask for them.
+ACTIVITY_TAB_ALIASES = {"history": "downloads", "streams": "playback"}
 # Mute choices on Needs Attention, in hours.
 MUTE_HOURS = (1, 24, 168)
 # Card layout on service pages (Emby: detailed cards or compact rows), remembered in a cookie.
@@ -156,6 +157,13 @@ def filter_view(
 SERVICE_PAGES: dict[str, ServiceType] = {t.value: t for t in ServiceType}
 
 
+def _activity_tab(tab: str) -> str:
+    tab = ACTIVITY_TAB_ALIASES.get(tab, tab)
+    if tab not in ACTIVITY_TABS:
+        raise HTTPException(404)
+    return tab
+
+
 def _service_context(
     request: Request, ctx: AppContext, service_type: ServiceType | None
 ) -> tuple[DashboardView, dict[str, object]]:
@@ -171,8 +179,9 @@ def _service_context(
 async def activity(
     request: Request,
     ctx: AppContext = Depends(get_context),
-    tab: ActivityTab = "playback",
+    tab: str = "playback",
 ) -> HTMLResponse:
+    tab = _activity_tab(tab)
     _, base = _service_context(request, ctx, None)
     response = render(
         request, "pages/activity.html", {**base, "tab": tab, "page_title": "Activity"}
@@ -183,8 +192,9 @@ async def activity(
 
 @router.get("/partials/activity/{tab}", response_class=HTMLResponse)
 async def activity_partial(
-    tab: ActivityTab, request: Request, ctx: AppContext = Depends(get_context)
+    tab: str, request: Request, ctx: AppContext = Depends(get_context)
 ) -> HTMLResponse:
+    tab = _activity_tab(tab)
     _, base = _service_context(request, ctx, None)
     return render(request, "partials/activity_list.html", {**base, "tab": tab})
 

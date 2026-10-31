@@ -3,7 +3,7 @@
 <div class="grid grid-cols-1 gap-3 lg:gap-4 {{ 'md:grid-cols-2' if view.servers|length > 1 }}">
   {% for card in view.servers %}
   <div class="panel p-3 sm:p-4">
-    <div class="mb-3 flex items-center gap-3">
+    <div class="flex items-center gap-3 sm:mb-3">
       <span class="panel-inset flex size-10 shrink-0 items-center justify-center text-base-content/70">{{ icon("server", "size-5") }}</span>
       <div class="min-w-0 flex-1">
         <p class="flex items-center gap-2 truncate font-semibold">{{ card.name }}{% if card.is_local and view.servers|length > 1 %}<span class="badge badge-ghost badge-xs font-normal">This server</span>{% endif %}</p>
@@ -14,16 +14,16 @@
           {% if not card.is_local %}· synced {{ card.last_sync|reltime }}{% endif %}
         </p>
       </div>
-      {% if card.insecure_transport %}<span class="badge badge-warning badge-soft badge-xs" title="This peer is reached over plain HTTP outside a private network">HTTP</span>{% endif %}
+      {% if card.insecure_transport %}<span class="badge badge-warning badge-soft badge-xs">Plain HTTP</span>{% endif %}
       <a href="/servers#server-{{ card.key }}" class="btn btn-ghost btn-sm btn-circle" aria-label="Server details">{{ icon("chevron-right", "size-4") }}</a>
     </div>
-    {% if card.error and not card.is_local %}<p class="mb-2 text-xs text-error">{{ card.error }}</p>{% endif %}
+    {% if card.error and not card.is_local %}<p class="mb-2 mt-2 text-xs text-error sm:mt-0">{{ card.error }}</p>{% endif %}
     {% if card.services %}
-    <div class="grid grid-cols-2 gap-2 {{ 'sm:grid-cols-4' if view.servers|length == 1 else '2xl:grid-cols-4' }}">
+    <div class="hidden grid-cols-2 gap-2 sm:grid {{ 'sm:grid-cols-4' if view.servers|length == 1 else '2xl:grid-cols-4' }}">
       {% for svc in card.services %}{{ items.service_tile_card(svc) }}{% endfor %}
     </div>
     {% elif card.is_local %}
-    <div class="panel-inset flex flex-col items-center gap-2 px-4 py-5 text-center">
+    <div class="panel-inset mt-3 flex flex-col items-center gap-2 px-4 py-5 text-center sm:mt-0">
       <p class="text-sm">No services configured yet.</p>
       <a href="/servers/services/new" class="btn btn-primary btn-sm">{{ icon("plus", "size-4") }} Add a service</a>
     </div>

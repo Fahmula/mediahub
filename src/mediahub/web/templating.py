@@ -6,6 +6,7 @@ import hashlib
 from functools import cache
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 
 from fastapi import Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
@@ -55,6 +56,12 @@ def redirect(url: str, request: Request) -> Response:
     return RedirectResponse(url, status_code=303)
 
 
+def _url_without_scope(request: Request) -> str:
+    """This page's URL for the server select, which adds the ``server`` it picked."""
+    query = urlencode([(k, v) for k, v in request.query_params.multi_items() if k != "server"])
+    return f"{request.url.path}?{query}" if query else request.url.path
+
+
 def render(
     request: Request,
     name: str,
@@ -70,6 +77,7 @@ def render(
         "identity": ctx.identity,
         "demo_mode": ctx.settings.demo_mode,
         "current_path": request.url.path,
+        "current_url": _url_without_scope(request),
         "is_htmx": is_htmx(request),
         "theme": THEMES.get(request.cookies.get("mh_theme", ""), "mediahub"),
     }
