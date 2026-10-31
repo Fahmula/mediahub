@@ -22,6 +22,18 @@ Re-run `scripts/build-css.sh` after adding Tailwind classes to templates; `stati
 git-ignored. Classes built from variables (e.g. `text-{{ tone }}`) must be safelisted with
 `@source inline(...)` in `static/css/input.css`.
 
+## Commits and releases
+
+- **Conventional Commits, always:** every commit and PR title is `type(scope): subject` (scope
+  optional). PRs are squash-merged, so the PR title lands on `main`; a `PR title` check enforces it.
+  `feat` = minor; `fix`, `perf`, `deps`, `revert` = patch; `!` or `BREAKING CHANGE:` = breaking
+  (minor until 1.0). `docs`, `refactor`, `test`, `build`, `ci`, `chore`, `style` don't release and
+  stay out of the changelog, so pick the type by what users get.
+- **release-please** owns versions: merging its release PR tags `vX.Y.Z`, creates the GitHub release
+  and builds the image. Never bump versions or edit `CHANGELOG.md` by hand. `release-please-config.json`
+  keeps `pyproject.toml`, `uv.lock` and `src/mediahub/__init__.py` in step; `uv.lock` must move too,
+  or `uv sync --locked` fails in CI and Docker.
+
 ## Architecture (src/mediahub/)
 
 - `integrations/<service>/` — one class per service implementing `integrations/base.py:Integration`

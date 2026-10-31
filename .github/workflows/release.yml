@@ -1,63 +1,39 @@
 name: Release
+# release-please keeps a release PR open from the Conventional Commits on main. Merging it tags the
+# release; CI and the image build are called from here because a tag pushed with GITHUB_TOKEN
+# doesn't start other workflows.
 on:
-  workflow_dispatch:
-    inputs:
-      bump:
-        description: Version part to increment from the latest v* tag
-        type: choice
-        options: [patch, minor, major]
-        default: patch
+  push:
+    branches: [main]
 
 concurrency:
   group: release
   cancel-in-progress: false
 
 jobs:
-  test:
-    if: github.ref == 'refs/heads/main'
-    uses: ./.github/workflows/ci.yml
-
-  tag:
-    needs: test
+  release-please:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      issues: write
+      pull-requests: write
     outputs:
-      tag: ${{ steps.next.outputs.tag }}
+      created: ${{ steps.release.outputs.release_created }}
+      tag: ${{ steps.release.outputs.tag_name }}
     steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - id: next
-        env:
-          BUMP: ${{ inputs.bump }}
-        run: |
-          latest=$(git tag --list 'v[0-9]*.[0-9]*.[0-9]*' --sort=-v:refname | grep -Ev -- '-' | head -n1 || true)
-          IFS=. read -r major minor patch <<< "${latest#v}"
-          major=${major:-0} minor=${minor:-0} patch=${patch:-0}
-          case "$BUMP" in
-            major) major=$((major + 1)) minor=0 patch=0 ;;
-            minor) minor=$((minor + 1)) patch=0 ;;
-            patch) patch=$((patch + 1)) ;;
-          esac
-          tag="v${major}.${minor}.${patch}"
-          echo "Latest: ${latest:-none} -> $tag"
-          echo "tag=$tag" >> "$GITHUB_OUTPUT"
-      - env:
-          GH_TOKEN: ${{ github.token }}
-          TAG: ${{ steps.next.outputs.tag }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git tag -a "$TAG" -m "MediaHub $TAG"
-          git push origin "$TAG"
-          gh release create "$TAG" --title "$TAG" --generate-notes --verify-tag
+      - id: release
+        uses: googleapis/release-please-action@v5
+
+  test:
+    needs: release-please
+    if: needs.release-please.outputs.created == 'true'
+    uses: ./.github/workflows/ci.yml
 
   docker:
-    needs: tag
+    needs: [release-please, test]
     uses: ./.github/workflows/docker.yml
     with:
-      tag: ${{ needs.tag.outputs.tag }}
+      tag: ${{ needs.release-please.outputs.tag }}
     permissions:
       contents: read
       packages: write

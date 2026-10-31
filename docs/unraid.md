@@ -13,14 +13,12 @@
    - **Network type**: see step 3 if you use InfiniDysk.
 3. **Apply**, then open the Web UI and create the admin account.
 
-> The image is `ghcr.io/fahmula/mediahub`, published only when a release is cut (Actions →
-> **Release** → patch/minor/major), tagged `X.Y.Z`, `X.Y` and `latest`. Until the first release,
-> build it on the server (`docker build -t ghcr.io/fahmula/mediahub .`
-> in a checkout) or change the template's repository.
+> The image is `ghcr.io/fahmula/mediahub`, published with each release and tagged `X.Y.Z`, `X.Y`
+> and `latest`.
 
 ## 2. Add your services
 
-**Settings → Add service**, choose the type, enter the URL as reachable *from the MediaHub
+**Servers → Add service**, choose the type, enter the URL as reachable *from the MediaHub
 container* and the API key, then **Test connection** before saving.
 
 Container names (e.g. `http://sonarr:8989`) only resolve when both containers share a custom
@@ -47,8 +45,8 @@ MediaHub is designed for a private network such as Tailscale. For HTTPS, `tailsc
 in front of MediaHub works well; then set **Secure cookies** to `true`.
 
 To link your install with another one (read-only), on the server to be read go to
-**Settings → Connected servers**, create an access token and copy it (it's shown once). On the
-other server, **Link a server**, enter the first server's Tailscale URL (e.g.
+**Servers → Access tokens**, create a token and copy it (it's shown once). On the other server,
+**Servers → Link a server**, enter the first server's Tailscale URL (e.g.
 `https://mediahub.your-tailnet.ts.net`) and paste the token. **Test connection** checks the URL
 and token before saving. Repeat in the other direction for both to see each other. Client IPs,
 file paths and credentials never leave a server; revoking the token cuts access immediately.
@@ -73,4 +71,4 @@ Back up `/mnt/user/appdata/mediahub` (the Appdata Backup plugin covers it). `sec
 - **"Unexpected redirect … check the base URL"**: the URL is missing a URL base (e.g.
   `/sonarr`) or points at a login page.
 - **"Stored credentials can't be decrypted"**: `secret.key` was replaced or lost. Re-enter
-  the API keys in Settings.
+  the API keys under Servers.

@@ -7,9 +7,26 @@ monitors its own services; trusted installs can be linked read-only to see each 
 Built with FastAPI, Jinja2 + HTMX, Tailwind CSS + daisyUI, SQLite. One small container, no
 Redis, no Node.js at runtime.
 
-> **Status: Phase 5.** Emby live sessions, Sonarr/Radarr queues and history, InfiniDysk
-> streaming, provider and cache metrics with live reads, a Needs Attention list you can
-> acknowledge or mute, and read-only linking of MediaHub installs.
+## Features
+
+- **Dashboard:** now playing first, then Needs Attention, your servers, downloads and InfiniDysk.
+  Built for phones, with a bottom nav and live counts.
+- **Emby:** live sessions with posters, progress and transcode details, in a detailed or compact
+  layout.
+- **Sonarr and Radarr:** the download queue and recent history, with season packs grouped into one
+  card and import warnings told apart from real blocks.
+- **InfiniDysk:** provider speed, errors, connections and circuits, cache metrics and the reads in
+  progress.
+- **Stream health:** each Emby stream is matched to its InfiniDysk read, so you see whether it was
+  served cleanly, recovered or failed, in InfiniDysk's own words.
+- **Next-episode health check:** optionally has InfiniDysk check the next episode while you watch,
+  so a broken release can be repaired before you reach it.
+- **Play history:** 30 days of plays matched to InfiniDysk, with any problems they had.
+- **Needs Attention:** services that are down, health warnings, stuck imports, failed downloads
+  nothing retried, and provider circuits or limits. Acknowledge an issue or mute it for an hour,
+  a day or a week.
+- **Linked installs:** see another trusted MediaHub read-only, alongside your own.
+- **Installable:** add it to a phone or desktop as an app.
 
 ## Quick start
 
@@ -19,6 +36,9 @@ Redis, no Node.js at runtime.
 docker compose up -d --build
 ```
 
+That builds from this checkout. Release images are published to `ghcr.io/fahmula/mediahub`; to use
+one, remove `build: .` from `docker-compose.yml`.
+
 Open `http://<host>:8080`, create the admin account, then **Servers → Add service**.
 
 Want to see the UI first? Set `MEDIAHUB_DEMO_MODE=true` to show generated data, including a
@@ -26,7 +46,8 @@ simulated second server.
 
 ### Unraid
 
-See [docs/unraid.md](docs/unraid.md). A template is in [unraid/mediahub.xml](unraid/mediahub.xml).
+See [docs/unraid.md](docs/unraid.md). A template is in
+[unraid/my-mediahub.xml](unraid/my-mediahub.xml).
 
 ### Install as an app
 
@@ -57,12 +78,20 @@ backend URL and internal key (the live feed). It shows only what InfiniDysk logg
 it didn't log looks clean, and each install records its own plays: history isn't sent to linked
 servers.
 
+### Next-episode health check
+
+Off by default. To turn it on, edit an Emby service under **Servers** and enable **Health-check
+the next episode**; **Check the next episode at (% played)** sets when, 50% if left blank. MediaHub
+then asks every InfiniDysk on the same server to recheck the next episode once per playing item,
+and the stream card follows the result. A file is asked for at most once in 24 hours.
+
 ## Configuration
 
 Everything except the environment below lives in the web UI and the `/config` volume.
 
 | Variable | Default | Purpose |
 |---|---|---|
+| `MEDIAHUB_HOST` | `0.0.0.0` | Bind address |
 | `MEDIAHUB_PORT` | `8080` | Listening port |
 | `MEDIAHUB_CONFIG_DIR` | `/config` | Database, encryption key, cache |
 | `MEDIAHUB_SERVER_NAME` | `MediaHub` | Server name on first start (editable later) |
@@ -88,7 +117,8 @@ encrypted with a key derived from `secret.key`; without it they must be re-enter
   rendered back to the browser, and redacted from logs.
 - Redirects from services are never followed; the browser can't make MediaHub fetch arbitrary
   URLs. InfiniDysk calls are restricted to a read-only allowlist (some of its GET routes change
-  state).
+  state). The one write is the optional next-episode health check, which sends InfiniDysk's own
+  recheck request.
 - Linked servers authenticate with a bearer token (stored only as a SHA-256 hash, revocable,
   rate limited) on a separate read-only `/peer/v1` API without cookies. Client IPs and file
   paths are stripped from everything served there; a peer's own peers are never relayed.
@@ -121,7 +151,7 @@ MEDIAHUB_DEMO_MODE=true MEDIAHUB_CONFIG_DIR=./.dev-config MEDIAHUB_LOG_FORMAT=co
 ```
 
 ```bash
-uv run ruff format . && uv run ruff check . && uv run pytest
+uv run ruff format . && uv run ruff check . && uv run mypy && uv run pytest
 ```
 
 New database migrations:
@@ -130,13 +160,34 @@ New database migrations:
 MEDIAHUB_CONFIG_DIR=./.dev-config uv run alembic revision --autogenerate -m "describe change"
 ```
 
+### Commits
+
+Commits on `main` follow [Conventional Commits](https://www.conventionalcommits.org/), because
+they decide the next version and the changelog. PRs are squash-merged, so the PR title is what
+counts, and a check on each PR enforces it.
+
+| Commit | Release |
+|---|---|
+| `feat:` | Minor |
+| `fix:`, `perf:`, `deps:`, `revert:` | Patch |
+| `feat!:`, `fix!:` or a `BREAKING CHANGE:` footer | Minor until 1.0, then major |
+| `docs:`, `refactor:`, `test:`, `build:`, `ci:`, `chore:`, `style:` | None, and left out of the changelog |
+
+An optional scope is fine, e.g. `fix(emby): handle missing poster`.
+
 ### Releasing
 
-Merging to `main` runs CI only; no image is built. To publish one, run **Actions → Release**
-on `main` and choose `patch`, `minor` or `major`. It runs CI, bumps the latest `vX.Y.Z` tag,
-creates a GitHub release with generated notes, and pushes `ghcr.io/fahmula/mediahub` tagged
-`X.Y.Z`, `X.Y` and `latest` (the app reports the tag as its version). Pushing a `v*` tag by
-hand builds the image too; pre-release tags such as `v1.0.0-rc1` don't move `latest`.
+Releases use [release-please](https://github.com/googleapis/release-please). Once `main` has a
+commit that releases, a release PR stays open with the next version and changelog, updated on each
+merge; no image is built yet. To publish, merge that PR. It tags `vX.Y.Z` and creates the GitHub
+release, then CI runs and pushes `ghcr.io/fahmula/mediahub` tagged `X.Y.Z`, `X.Y` and `latest` (the
+app reports the tag as its version).
+
+- CI doesn't run on the release PR itself, because GitHub doesn't start workflows for PRs opened
+  with `GITHUB_TOKEN`. It runs after the merge and must pass before the image is built.
+- To choose the version, add a `Release-As: 1.0.0` footer to a commit.
+- Pushing a `v*` tag by hand still builds an image; pre-release tags such as `v1.0.0-rc1` don't
+  move `latest`.
 
 ### Layout
 
@@ -146,6 +197,7 @@ src/mediahub/
   monitoring/     poller (one task per target), demand tracker, in-memory snapshot store, issues
   aggregation/    view models for "all servers" / "this server" / one peer
   web/            routes, templates helpers; templates/ and static/ alongside
+  history/        play history storage (the one monitoring record kept in the database)
   db/ security/ instances/ peers/
 ```
 
