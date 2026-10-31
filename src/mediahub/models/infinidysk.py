@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from enum import StrEnum
 
@@ -94,6 +95,15 @@ class CacheStats(Model):
         return min(100.0, self.used_bytes / self.max_bytes * 100)
 
 
+def health_of(problems: Iterable[ReadProblem]) -> StreamHealth:
+    outcomes = {p.outcome for p in problems}
+    if ProblemOutcome.FAILED in outcomes:
+        return StreamHealth.FAILED
+    if outcomes - {ProblemOutcome.WARNING}:
+        return StreamHealth.RECOVERED
+    return StreamHealth.WARNING if outcomes else StreamHealth.OK
+
+
 class ActiveRead(Model):
     read_id: str
     file_name: str
@@ -115,12 +125,7 @@ class ActiveRead(Model):
     @computed_field  # type: ignore[prop-decorator]
     @property
     def health(self) -> StreamHealth:
-        outcomes = {p.outcome for p in self.problems}
-        if ProblemOutcome.FAILED in outcomes:
-            return StreamHealth.FAILED
-        if outcomes - {ProblemOutcome.WARNING}:
-            return StreamHealth.RECOVERED
-        return StreamHealth.WARNING if outcomes else StreamHealth.OK
+        return health_of(self.problems)
 
 
 class InfiniDyskStats(Model):

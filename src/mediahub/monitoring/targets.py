@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from collections.abc import Callable
 from datetime import UTC, datetime
 
@@ -59,15 +60,26 @@ class InstanceTarget(PollTarget):
         self._store = store
         self._order = order
         self._status = StatusReporter(self.key, on_status)
+        self._boost_until = float("-inf")
+
+    def _base_interval(self, active: bool) -> float:
+        return float(self.integration.interval_s) if active else IDLE_INTERVAL_S
 
     def interval(self, active: bool) -> float:
-        return float(self.integration.interval_s) if active else IDLE_INTERVAL_S
+        return self._base_interval(active or time.monotonic() < self._boost_until)
+
+    def boost(self, seconds: float) -> None:
+        """Poll now and at the active rate for a while, with nobody looking."""
+        if time.monotonic() >= self._boost_until:
+            self.wake.set()
+        self._boost_until = time.monotonic() + seconds
 
     async def run_once(self, active: bool) -> bool:
         now = datetime.now(UTC)
         prev = self._store.get_local(self.key)
         base = prev or ServiceSnapshot(source=self.integration.source)
-        interval = self.interval(active)
+        # Not the boosted rate: staleness is judged against it, and a boost ends.
+        interval = self._base_interval(active)
         try:
             result = await self.integration.poll(full=active)
         except IntegrationError as exc:

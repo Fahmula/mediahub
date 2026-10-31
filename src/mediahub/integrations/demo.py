@@ -13,6 +13,7 @@ import random
 import time
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from typing import Any
 
 from mediahub.integrations.base import (
     Capability,
@@ -37,6 +38,7 @@ from mediahub.models.infinidysk import (
     ProblemOutcome,
     ProviderStats,
     ReadProblem,
+    health_of,
 )
 from mediahub.models.issues import Severity
 from mediahub.models.playback import (
@@ -438,7 +440,8 @@ def _demo_file(play: _Play) -> str:
 
 def _demo_problems(kind: int, file_name: str) -> list[ReadProblem]:
     """0 clean, 1 recovered, 2 failed: the demo shows every health state."""
-    now = datetime.now(UTC)
+    # Fixed times: a problem that moved with each poll would count as a new one each poll.
+    now = datetime.fromtimestamp(_EPOCH, UTC)
     path = f'"/content/movies/{file_name}"'
     if kind == 1:
         return [
@@ -465,6 +468,55 @@ def _demo_problems(kind: int, file_name: str) -> list[ReadProblem]:
             ),
         ]
     return []
+
+
+def demo_play_rows(now: datetime) -> list[dict[str, Any]]:
+    """A month of finished plays for the Play history tab; the live ones are recorded as usual."""
+    plays = [
+        ("Dune: Part Two", 2024, 2, 0.1, 0.92),
+        ("Severance", None, 1, 5, 0.31),
+        ("Oppenheimer", 2023, 0, 9, 1.0),
+        ("The Bear", None, 2, 26, 0.07),
+        ("Blade Runner 2049", 2017, 1, 50, 0.64),
+        ("Andor", None, 0, 75, 1.0),
+        ("Arrival", 2016, 2, 200, 0.45),
+        ("Shogun", None, 1, 400, 0.88),
+    ]
+    rows = []
+    for i, (title, year, kind, hours_ago, watched) in enumerate(plays):
+        file_name = f"{title.replace(' ', '.').replace(':', '')}.2160p.mkv"
+        started = now - timedelta(hours=hours_ago)
+        problems = [
+            p.model_copy(update={"at": started + timedelta(minutes=10 + 8 * n)})
+            for n, p in enumerate(_demo_problems(kind, file_name))
+        ]
+        ended = started + timedelta(minutes=int(120 * watched))
+        rows.append(
+            {
+                "id": f"00000000-0000-4000-8000-{i:012d}",
+                "instance_id": "demo-emby",
+                "instance_name": "Emby",
+                "session_id": f"demo-history-{i}",
+                "item_key": f"demo-history-{i}",
+                "title": title,
+                "subtitle": None if year else f"S01E0{i + 1}",
+                "year": year,
+                "kind": "movie" if year else "episode",
+                "user": ("Oshane", "Kids", "Marcus")[i % 3],
+                "device": ("NVIDIA Shield", "iPhone 15", "LG OLED C3")[i % 3],
+                "file_name": file_name,
+                "started_at": started,
+                "last_seen_at": ended,
+                "ended_at": ended,
+                "position_s": 7200.0 * watched,
+                "duration_s": 7200.0,
+                "outcome": health_of(problems).value,
+                "problem_count": len(problems),
+                "problems": [p.model_dump(mode="json") for p in problems],
+                "incomplete": False,
+            }
+        )
+    return rows
 
 
 def _infinidysk(seed: int, plays: list[_Play], src: SourceRef) -> InfiniDyskStats:

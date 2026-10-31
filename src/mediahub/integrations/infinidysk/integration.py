@@ -25,6 +25,7 @@ import asyncio
 import contextlib
 import json
 import time
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any, ClassVar
@@ -402,6 +403,11 @@ class InfiniDyskIntegration(Integration):
                 ready=ready,
             ),
         )
+
+    def on_read_started(self, callback: Callable[[], None]) -> None:
+        """Called from the live feed as soon as InfiniDysk starts reading a file."""
+        if self._feed is not None:
+            self._feed.on_read_started = callback
 
     async def _backfill_logs(self, feed: LiveFeed) -> None:
         feed.needs_backfill = False  # one try per connect; the live topic covers the rest
