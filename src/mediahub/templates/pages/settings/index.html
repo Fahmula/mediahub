@@ -13,6 +13,11 @@
   </section>
 
   <section class="panel p-4">
+    <h2 class="section-title mb-3">Notifications</h2>
+    {% include "partials/settings/notifications.html" %}
+  </section>
+
+  <section class="panel p-4">
     <h2 class="section-title mb-3">About</h2>
     <dl class="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
       <dt class="muted">Version</dt><dd>{{ about.version }}{% if about.demo_mode %} <span class="badge badge-secondary badge-soft badge-xs">demo mode</span>{% endif %}</dd>

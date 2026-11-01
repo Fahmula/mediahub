@@ -49,7 +49,7 @@ To link your install with another one (read-only), on the server to be read go t
 **Servers → Link a server**, enter the first server's Tailscale URL (e.g.
 `https://mediahub.your-tailnet.ts.net`) and paste the token. **Test connection** checks the URL
 and token before saving. Repeat in the other direction for both to see each other. Client IPs,
-file paths and credentials never leave a server; revoking the token cuts access immediately.
+file paths and credentials never leave a server (notifications have paths removed too); revoking the token cuts access immediately.
 
 ### Install as an app
 

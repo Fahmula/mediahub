@@ -28,13 +28,16 @@ from mediahub.monitoring.play_history import RETENTION
 from mediahub.monitoring.service import MonitoringService
 from mediahub.monitoring.store import SnapshotStore
 from mediahub.peers import api as peer_api
+from mediahub.push.dispatcher import PushDispatcher
+from mediahub.push.repository import ensure_vapid
+from mediahub.push.webpush import WebPushTransport
 from mediahub.runtime_lock import InstanceLock
 from mediahub.security.headers import SecurityHeadersMiddleware
 from mediahub.security.passwords import MIN_PASSWORD_LENGTH, hash_password
 from mediahub.security.sessions import purge_expired
 from mediahub.web.deps import LoginRequired, SetupRequired, has_users
 from mediahub.web.image_cache import ImageCache
-from mediahub.web.routes import auth, health, images, pages, peers, pwa, servers
+from mediahub.web.routes import auth, health, images, notifications, pages, peers, pwa, servers
 from mediahub.web.routes import settings as settings_routes
 from mediahub.web.templating import STATIC_DIR, is_htmx, render
 
@@ -55,11 +58,16 @@ def _build_context(settings: Settings) -> AppContext:
         purge_expired(db)
         history.prune(db, datetime.now(UTC) - RETENTION)
         _bootstrap_admin(settings, db)
+        vapid = None if settings.demo_mode else ensure_vapid(db)
 
     issue_states = IssueStates(sessions)
     issue_states.load()
     store = SnapshotStore(identity=identity, issue_states=issue_states)
-    monitor = MonitoringService(settings, sessions, store, DemandTracker())
+    push = None
+    if vapid is not None:
+        transport = WebPushTransport(vapid, settings.push_contact)
+        push = PushDispatcher(sessions, transport, vapid.public)
+    monitor = MonitoringService(settings, sessions, store, DemandTracker(), push)
     return AppContext(
         settings=settings,
         engine=engine,
@@ -157,6 +165,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(auth.logout_router)
     app.include_router(images.router)
     app.include_router(peer_api.router)
+    app.include_router(notifications.router)
     app.include_router(settings_routes.router)
     app.include_router(servers.router)
     app.include_router(peers.router)

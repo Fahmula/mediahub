@@ -13,9 +13,11 @@ from mediahub.db.app_settings import SERVER_NAME, ServerIdentity, set_setting
 from mediahub.db.models import AuthSession, User
 from mediahub.db.session import session_scope
 from mediahub.logging import get_logger
+from mediahub.push import repository as push_repository
 from mediahub.security.csrf import verify_csrf
 from mediahub.security.passwords import MIN_PASSWORD_LENGTH, hash_password, verify_password
 from mediahub.web.deps import CurrentUser, require_auth
+from mediahub.web.routes.notifications import device_list
 from mediahub.web.templating import render
 
 log = get_logger(__name__)
@@ -25,6 +27,7 @@ router = APIRouter(prefix="/settings", dependencies=[Depends(require_auth), Depe
 # ----- overview / general ------------------------------------------------------------------
 @router.get("", response_class=HTMLResponse)
 async def settings_home(request: Request, ctx: AppContext = Depends(get_context)) -> HTMLResponse:
+    push = ctx.monitor.push
     return render(
         request,
         "pages/settings/index.html",
@@ -32,6 +35,8 @@ async def settings_home(request: Request, ctx: AppContext = Depends(get_context)
             "page_title": "Settings",
             "back_href": "/",
             "min_length": MIN_PASSWORD_LENGTH,
+            "push_public_key": push.public_key if push else None,
+            "devices": await run_in_threadpool(device_list, ctx) if push else [],
             "about": {
                 "version": __version__,
                 "server_id": ctx.identity.server_id,
@@ -104,6 +109,7 @@ async def change_password(
                     AuthSession.user_id == user.id, AuthSession.id_hash != auth.session_hash
                 )
             )
+            push_repository.delete_other_sessions(db, auth.session_hash)
             return None
 
     error = await run_in_threadpool(apply)

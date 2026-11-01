@@ -19,7 +19,7 @@ from mediahub.config import LogFormat
 REDACTED = "***"
 _SENSITIVE_KEY = re.compile(
     r"(api[_-]?key|apikey|token|secret|password|passwd|authorization|cookie|x-emby-token|"
-    r"x-api-key|internal[_-]?key)",
+    r"x-api-key|internal[_-]?key|endpoint|p256dh)",
     re.IGNORECASE,
 )
 

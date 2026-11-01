@@ -65,11 +65,14 @@ def _service_worker() -> str:
     precache = [OFFLINE_PATH, *(static_url(path) for path in OFFLINE_ASSETS)]
     source = (STATIC_DIR / "js" / "sw.js").read_text()
     template = (TEMPLATES_DIR / OFFLINE_TEMPLATE).read_text()
+    notification_icon = static_url("img/icon-192.png")
     version = hashlib.sha256(
-        "\n".join([__version__, source, template, *precache]).encode()
+        "\n".join([__version__, source, template, notification_icon, *precache]).encode()
     ).hexdigest()[:12]
-    return source.replace('"__VERSION__"', json.dumps(version)).replace(
-        "__PRECACHE__", json.dumps(precache)
+    return (
+        source.replace('"__VERSION__"', json.dumps(version))
+        .replace("__PRECACHE__", json.dumps(precache))
+        .replace('"__ICON__"', json.dumps(notification_icon))
     )
 
 

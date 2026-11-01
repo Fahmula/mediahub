@@ -1,0 +1,18 @@
+<div id="push-devices" hx-get="/settings/notifications/devices" hx-trigger="mh:refresh" hx-swap="outerHTML">
+  {% if devices %}
+  <ul class="divide-y divide-base-300/50">
+    {% for device in devices %}
+    <li class="flex items-center gap-3 py-2.5">
+      <div class="min-w-0 flex-1">
+        <p class="truncate text-sm font-medium">{{ device.label }}</p>
+        <p class="truncate text-xs muted">
+          {% if device.last_error %}<span class="text-error">{{ device.last_error }}</span> · {% endif %}
+          {% if device.last_success_at %}last notified {{ device.last_success_at|reltime }}{% else %}added {{ device.created_at|reltime }}{% endif %}
+        </p>
+      </div>
+      <button type="button" class="btn btn-ghost btn-sm text-error" hx-post="/settings/notifications/devices/{{ device.id }}/remove" hx-target="#push-devices" hx-swap="outerHTML" hx-confirm="Stop sending notifications to {{ device.label }}?" aria-label="Remove {{ device.label }}">{{ icon("trash-2", "size-4") }}<span class="hidden sm:inline">Remove</span></button>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+</div>

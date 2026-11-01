@@ -41,6 +41,23 @@ def test_service_worker_served_from_root(client: TestClient) -> None:
         assert client.get(url).status_code == 200, url
 
 
+def test_service_worker_shows_notifications(client: TestClient) -> None:
+    script = client.get("/sw.js").text
+    for event in ("push", "notificationclick", "pushsubscriptionchange"):
+        assert f'addEventListener("{event}"' in script
+    assert "__ICON__" not in script
+    icon = re.search(r'const ICON = "([^"]+)";', script)
+    assert icon, "icon not filled in"
+    assert client.get(icon.group(1)).headers["content-type"] == "image/png"
+
+
+def test_service_worker_stays_clear_of_notification_routes(client: TestClient) -> None:
+    """Subscribing is a POST, and the bootstrap holds a CSRF token: neither may be cached."""
+    script = client.get("/sw.js").text
+    assert 'request.method !== "GET"' in script
+    assert 'url.pathname.startsWith("/static/")' in script
+
+
 def test_offline_page_has_no_session_context(client: TestClient) -> None:
     setup_admin(client)
     resp = client.get("/offline")
